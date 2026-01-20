@@ -5,6 +5,7 @@ import BottomNav from '../../components/navigation/BottomNav';
 import { useAuth } from '../../context/AuthContext';
 import { useWallet } from '../../context/WalletContext';
 import { getCosmeticById } from '../../data/cosmetics';
+import PixelAvatar from '../../components/avatar/PixelAvatar';
 
 export default function ProfilePage() {
     const navigate = useNavigate();
@@ -12,8 +13,7 @@ export default function ProfilePage() {
     const { coins, transactions } = useWallet();
 
     const avatar = user?.avatar || {};
-    const background = getCosmeticById('backgrounds', avatar.background);
-    const frame = getCosmeticById('frames', avatar.frame);
+    const badgeData = getCosmeticById('badges', avatar.badge);
 
     const handleLogout = () => {
         logout();
@@ -35,15 +35,13 @@ export default function ProfilePage() {
                 {/* Avatar & User Info */}
                 <div className="card text-center">
                     <div className="relative inline-block">
-                        <div className={`w-24 h-24 rounded-full flex items-center justify-center text-4xl font-bold text-white mx-auto ${background ? `bg-gradient-to-br ${background.color}` : 'bg-gradient-to-br from-primary-400 to-accent-400'
-                            } ${frame?.id === 'fire' ? 'ring-4 ring-orange-400 animate-pulse' : ''}`}>
-                            {user?.username?.[0]?.toUpperCase() || 'U'}
-                        </div>
-                        {avatar.badge && (
-                            <div className="absolute -bottom-1 -right-1 text-2xl">
-                                {getCosmeticById('badges', avatar.badge)?.icon}
-                            </div>
-                        )}
+                        {/* Pixel Art Avatar */}
+                        <PixelAvatar
+                            character={avatar.character || 'warrior'}
+                            size={96}
+                            frame={avatar.frame || 'default'}
+                            badge={badgeData?.icon}
+                        />
                         <button
                             onClick={() => navigate('/shop')}
                             className="absolute -bottom-1 -right-1 bg-primary-500 w-8 h-8 rounded-full flex items-center justify-center text-white shadow-lg"

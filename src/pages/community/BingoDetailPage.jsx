@@ -1,9 +1,10 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { Star, TrendingUp, Users, Grid, Play } from 'lucide-react';
+import { Star, TrendingUp, Users, Grid, Play, Lock } from 'lucide-react';
 import Header from '../../components/navigation/Header';
 import { getBingoById } from '../../data/bingos';
 import { useWallet } from '../../context/WalletContext';
 import { useGame } from '../../context/GameContext';
+import { useAuth } from '../../context/AuthContext';
 import { useState } from 'react';
 
 export default function BingoDetailPage() {
@@ -11,7 +12,9 @@ export default function BingoDetailPage() {
     const navigate = useNavigate();
     const { coins, spendCoins, canAfford } = useWallet();
     const { createRoom } = useGame();
+    const { isGuest } = useAuth();
     const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+    const [showGuestModal, setShowGuestModal] = useState(false);
 
     const bingo = getBingoById(id);
 
@@ -20,7 +23,15 @@ export default function BingoDetailPage() {
         return null;
     }
 
+    const isCompetitive = bingo.type === 'serious';
+
     const handlePlay = () => {
+        // Guest trying to play competitive bingo
+        if (isGuest && isCompetitive) {
+            setShowGuestModal(true);
+            return;
+        }
+
         if (bingo.price > 0 && !canAfford(bingo.price)) {
             alert('Not enough coins!');
             return;
@@ -34,7 +45,6 @@ export default function BingoDetailPage() {
     };
 
     const startGame = () => {
-        // For serious bingos, randomize the squares
         let items = [...bingo.items];
         if (bingo.type === 'serious') {
             items = shuffleArray(items).slice(0, bingo.gridSize * bingo.gridSize);
@@ -71,8 +81,8 @@ export default function BingoDetailPage() {
             <div className="p-6 space-y-6">
                 {/* Hero */}
                 <div className={`p-6 rounded-2xl text-white ${bingo.type === 'serious'
-                        ? 'bg-gradient-to-br from-primary-500 to-accent-500'
-                        : 'bg-gradient-to-br from-yellow-400 to-orange-400'
+                    ? 'bg-gradient-to-br from-primary-500 to-accent-500'
+                    : 'bg-gradient-to-br from-yellow-400 to-orange-400'
                     }`}>
                     <div className="text-5xl mb-4 text-center">
                         {bingo.type === 'serious' ? '🎯' : '🎉'}
@@ -102,9 +112,14 @@ export default function BingoDetailPage() {
                 {/* Type Badge */}
                 {bingo.type === 'serious' && (
                     <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl">
-                        <h3 className="font-bold text-blue-800 mb-1">🎯 Competitive Bingo</h3>
+                        <h3 className="font-bold text-blue-800 mb-1 flex items-center gap-2">
+                            🎯 Competitive Bingo
+                            {isGuest && <Lock size={14} className="text-blue-600" />}
+                        </h3>
                         <p className="text-sm text-blue-700">
-                            Each player gets a randomly shuffled board. The creator marks squares as completed for everyone.
+                            {isGuest
+                                ? 'Create a free account to play competitive bingos!'
+                                : 'Each player gets a randomly shuffled board. The creator marks squares as completed for everyone.'}
                         </p>
                     </div>
                 )}
@@ -146,19 +161,66 @@ export default function BingoDetailPage() {
             <div className="fixed bottom-0 left-0 right-0 p-6 bg-white border-t border-gray-100">
                 <button
                     onClick={handlePlay}
-                    className="w-full btn-primary flex items-center justify-center gap-3"
+                    className={`w-full flex items-center justify-center gap-3 ${isGuest && isCompetitive
+                            ? 'bg-gray-200 text-gray-500 font-bold py-4 px-6 rounded-2xl'
+                            : 'btn-primary'
+                        }`}
                 >
-                    <Play size={20} />
-                    <span>
-                        {bingo.price > 0 ? `Play for ${bingo.price} 🪙` : 'Play Now'}
-                    </span>
+                    {isGuest && isCompetitive ? (
+                        <>
+                            <Lock size={20} />
+                            <span>Account Required</span>
+                        </>
+                    ) : (
+                        <>
+                            <Play size={20} />
+                            <span>
+                                {bingo.price > 0 ? `Play for ${bingo.price} 🪙` : 'Play Now'}
+                            </span>
+                        </>
+                    )}
                 </button>
-                {bingo.price > 0 && (
+                {bingo.price > 0 && !isGuest && (
                     <p className="text-center text-sm text-gray-500 mt-2">
                         You have {coins} 🪙
                     </p>
                 )}
             </div>
+
+            {/* Guest Modal */}
+            {showGuestModal && (
+                <div
+                    className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6"
+                    onClick={() => setShowGuestModal(false)}
+                >
+                    <div
+                        className="bg-white rounded-2xl p-6 w-full max-w-sm animate-scale-in"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className="bg-primary-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <Lock className="text-primary-600" size={32} />
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-800 text-center mb-2">
+                            Account Required
+                        </h3>
+                        <p className="text-gray-600 text-center mb-6">
+                            Competitive bingos require a free account to track scores and rewards!
+                        </p>
+                        <button
+                            onClick={() => navigate('/signup')}
+                            className="w-full btn-primary mb-3"
+                        >
+                            Create Free Account
+                        </button>
+                        <button
+                            onClick={() => setShowGuestModal(false)}
+                            className="w-full text-gray-500 font-semibold"
+                        >
+                            Maybe Later
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Purchase Confirmation Modal */}
             {showPurchaseModal && (

@@ -1,27 +1,75 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { Trophy, Crown, Medal, Users, Calendar, Copy, Check } from 'lucide-react';
-import { useState } from 'react';
+import { Trophy, Crown, Medal, Users, Calendar, Copy, Check, UserPlus } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import Header from '../../components/navigation/Header';
 import { getLeagueById, getLeaderboard } from '../../data/leagues';
+
+// Simulated users for testing invites
+const SIMULATED_USERS = [
+    { name: 'Emma', avatar: '👩' },
+    { name: 'James', avatar: '👨' },
+    { name: 'Sofia', avatar: '👧' },
+    { name: 'Liam', avatar: '👦' },
+    { name: 'Olivia', avatar: '👩‍🦰' },
+];
 
 export default function LeagueDetailPage() {
     const { id } = useParams();
     const navigate = useNavigate();
     const [copied, setCopied] = useState(false);
+    const [showSimulateModal, setShowSimulateModal] = useState(false);
+    const [simulatedJoins, setSimulatedJoins] = useState([]);
+    const [league, setLeague] = useState(null);
 
-    const league = getLeagueById(id);
+    useEffect(() => {
+        const foundLeague = getLeagueById(id);
+        if (foundLeague) {
+            setLeague({ ...foundLeague });
+        }
+    }, [id]);
 
     if (!league) {
-        navigate('/leagues');
         return null;
     }
 
-    const leaderboard = getLeaderboard(league);
+    // Combine original members with simulated joins
+    const allMembers = [...league.members, ...simulatedJoins];
+    const leaderboard = [...allMembers].sort((a, b) => {
+        if (b.wins !== a.wins) return b.wins - a.wins;
+        return b.coins - a.coins;
+    });
 
     const copyCode = async () => {
         await navigator.clipboard.writeText(league.code);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
+    };
+
+    const simulateJoin = () => {
+        // Pick a random user that hasn't joined yet
+        const availableUsers = SIMULATED_USERS.filter(
+            u => !simulatedJoins.some(j => j.name === u.name)
+        );
+
+        if (availableUsers.length === 0) {
+            alert('All simulated users have already joined!');
+            return;
+        }
+
+        const randomUser = availableUsers[Math.floor(Math.random() * availableUsers.length)];
+
+        const newMember = {
+            id: `sim_${Date.now()}`,
+            name: randomUser.name,
+            wins: 0,
+            gamesPlayed: 0,
+            coins: 0,
+            isOwner: false,
+            isSimulated: true,
+        };
+
+        setSimulatedJoins(prev => [...prev, newMember]);
+        setShowSimulateModal(false);
     };
 
     const getRankIcon = (rank) => {
@@ -40,7 +88,7 @@ export default function LeagueDetailPage() {
                 <div className="grid grid-cols-3 gap-3">
                     <div className="card text-center">
                         <Users className="mx-auto text-primary-600 mb-2" size={24} />
-                        <p className="text-2xl font-bold text-gray-800">{league.members.length}</p>
+                        <p className="text-2xl font-bold text-gray-800">{allMembers.length}</p>
                         <p className="text-xs text-gray-500">Members</p>
                     </div>
                     <div className="card text-center">
@@ -74,6 +122,15 @@ export default function LeagueDetailPage() {
                         </button>
                     </div>
                 </div>
+
+                {/* Simulate Join Button for Testing */}
+                <button
+                    onClick={() => setShowSimulateModal(true)}
+                    className="w-full card flex items-center justify-center gap-3 bg-green-50 border-2 border-green-200 text-green-700 font-semibold"
+                >
+                    <UserPlus size={20} />
+                    <span>Simulate Friend Joining</span>
+                </button>
 
                 {/* Leaderboard */}
                 <div className="card">
@@ -132,7 +189,8 @@ export default function LeagueDetailPage() {
                         {leaderboard.map((member, index) => (
                             <div
                                 key={member.id}
-                                className={`flex items-center justify-between p-3 rounded-xl ${member.name === 'You' ? 'bg-primary-50 border border-primary-200' : 'bg-gray-50'
+                                className={`flex items-center justify-between p-3 rounded-xl ${member.name === 'You' ? 'bg-primary-50 border border-primary-200' :
+                                        member.isSimulated ? 'bg-green-50 border border-green-200' : 'bg-gray-50'
                                     }`}
                             >
                                 <div className="flex items-center gap-3">
@@ -143,7 +201,12 @@ export default function LeagueDetailPage() {
                                         {member.name[0]}
                                     </div>
                                     <div>
-                                        <p className="font-semibold text-gray-800">{member.name}</p>
+                                        <p className="font-semibold text-gray-800">
+                                            {member.name}
+                                            {member.isSimulated && (
+                                                <span className="ml-2 text-xs text-green-600">(simulated)</span>
+                                            )}
+                                        </p>
                                         <p className="text-xs text-gray-500">{member.gamesPlayed} games played</p>
                                     </div>
                                 </div>
@@ -161,6 +224,49 @@ export default function LeagueDetailPage() {
                     Start League Game
                 </button>
             </div>
+
+            {/* Simulate Join Modal */}
+            {showSimulateModal && (
+                <div
+                    className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6"
+                    onClick={() => setShowSimulateModal(false)}
+                >
+                    <div
+                        className="bg-white rounded-2xl p-6 w-full max-w-sm animate-scale-in"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className="text-5xl text-center mb-4">🧪</div>
+                        <h3 className="text-xl font-bold text-gray-800 text-center mb-2">
+                            Simulate Join
+                        </h3>
+                        <p className="text-gray-600 text-center mb-6">
+                            This will simulate a friend joining your league using the invite code.
+                        </p>
+                        <div className="bg-gray-100 p-4 rounded-xl mb-6 text-center">
+                            <p className="text-xs text-gray-500 mb-1">Available test users:</p>
+                            <div className="flex justify-center gap-2 flex-wrap">
+                                {SIMULATED_USERS.filter(u => !simulatedJoins.some(j => j.name === u.name)).map(u => (
+                                    <span key={u.name} className="text-sm">{u.avatar} {u.name}</span>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowSimulateModal(false)}
+                                className="flex-1 py-3 rounded-xl font-semibold text-gray-600 bg-gray-100"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={simulateJoin}
+                                className="flex-1 btn-primary py-3"
+                            >
+                                Add Random User
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

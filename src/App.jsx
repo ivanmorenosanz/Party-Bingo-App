@@ -12,6 +12,7 @@ import RoomLobbyPage from './pages/gameplay/RoomLobbyPage';
 import GameplayPage from './pages/gameplay/GameplayPage';
 import LeaguesPage from './pages/leagues/LeaguesPage';
 import LeagueDetailPage from './pages/leagues/LeagueDetailPage';
+import CreateLeaguePage from './pages/leagues/CreateLeaguePage';
 import CommunityPage from './pages/community/CommunityPage';
 import BingoDetailPage from './pages/community/BingoDetailPage';
 import CreateBingoPage from './pages/community/CreateBingoPage';
@@ -46,6 +47,7 @@ function App() {
                 {/* Leagues */}
                 <Route path="/leagues" element={<ProtectedRoute><LeaguesPage /></ProtectedRoute>} />
                 <Route path="/leagues/:id" element={<ProtectedRoute><LeagueDetailPage /></ProtectedRoute>} />
+                <Route path="/create-league" element={<ProtectedRoute><CreateLeaguePage /></ProtectedRoute>} />
 
                 {/* Community */}
                 <Route path="/community" element={<ProtectedRoute><CommunityPage /></ProtectedRoute>} />

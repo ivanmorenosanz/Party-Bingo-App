@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, User, Mail, Lock } from 'lucide-react';
+import { ArrowLeft, User, Mail, Lock, CheckCircle, RefreshCw } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useWallet } from '../../context/WalletContext';
 
@@ -9,12 +9,17 @@ export default function SignupPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [verificationCode, setVerificationCode] = useState('');
+    const [showVerification, setShowVerification] = useState(false);
+    const [displayCode, setDisplayCode] = useState('');
     const navigate = useNavigate();
-    const { signup } = useAuth();
+    const { signup, verifyEmail, resendVerificationCode } = useAuth();
     const { earnCoins } = useWallet();
 
     const handleSignup = (e) => {
         e.preventDefault();
+        setError('');
+
         if (!username || !email || !password) {
             setError('Please fill in all fields');
             return;
@@ -23,14 +28,117 @@ export default function SignupPage() {
             setError('Username must be at least 3 characters');
             return;
         }
+        if (!email.includes('@') || !email.includes('.')) {
+            setError('Please enter a valid email address');
+            return;
+        }
         if (password.length < 6) {
             setError('Password must be at least 6 characters');
             return;
         }
-        signup(username, email, password);
-        earnCoins(50, 'Welcome bonus! 🎉');
-        navigate('/');
+
+        const result = signup(username, email, password);
+        if (result.needsVerification) {
+            setShowVerification(true);
+            setDisplayCode(result.code); // For demo purposes
+        }
     };
+
+    const handleVerify = (e) => {
+        e.preventDefault();
+        setError('');
+
+        if (verificationCode.length !== 6) {
+            setError('Please enter the 6-digit code');
+            return;
+        }
+
+        const result = verifyEmail(verificationCode);
+        if (result.success) {
+            earnCoins(50, 'Welcome bonus! 🎉');
+            navigate('/');
+        } else {
+            setError(result.error || 'Invalid verification code');
+        }
+    };
+
+    const handleResend = () => {
+        const result = resendVerificationCode();
+        if (result.success) {
+            setDisplayCode(result.code);
+            setError('');
+        }
+    };
+
+    // Verification screen
+    if (showVerification) {
+        return (
+            <div className="min-h-screen gradient-hero p-6">
+                <button
+                    onClick={() => setShowVerification(false)}
+                    className="text-white hover:bg-white/20 p-2 rounded-xl transition-colors mb-8"
+                >
+                    <ArrowLeft size={24} />
+                </button>
+
+                <div className="max-w-md mx-auto">
+                    <div className="text-center mb-8">
+                        <div className="bg-white/20 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <Mail className="text-white" size={40} />
+                        </div>
+                        <h2 className="text-3xl font-bold text-white mb-2">Verify Your Email</h2>
+                        <p className="text-white/80">
+                            We sent a verification code to<br />
+                            <span className="font-semibold">{email}</span>
+                        </p>
+                    </div>
+
+                    {/* Demo: Show code for testing */}
+                    <div className="bg-green-500/20 border border-green-400/50 p-4 rounded-xl mb-6 text-center">
+                        <p className="text-white/80 text-sm mb-1">Demo Mode - Your code:</p>
+                        <p className="text-2xl font-mono font-bold text-white tracking-widest">{displayCode}</p>
+                    </div>
+
+                    {error && (
+                        <div className="bg-red-500/20 border border-red-400/50 text-white p-4 rounded-xl mb-6">
+                            {error}
+                        </div>
+                    )}
+
+                    <form onSubmit={handleVerify} className="space-y-4">
+                        <input
+                            type="text"
+                            placeholder="Enter 6-digit code"
+                            value={verificationCode}
+                            onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                            className="input-glass text-center text-2xl tracking-widest font-mono"
+                            maxLength={6}
+                        />
+
+                        <button
+                            type="submit"
+                            className="w-full bg-white text-primary-600 py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all"
+                        >
+                            <span className="flex items-center justify-center gap-2">
+                                <CheckCircle size={20} />
+                                Verify Email
+                            </span>
+                        </button>
+                    </form>
+
+                    <div className="mt-6 text-center">
+                        <button
+                            onClick={handleResend}
+                            className="text-white/80 hover:text-white flex items-center justify-center gap-2 mx-auto"
+                        >
+                            <RefreshCw size={16} />
+                            Resend code
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen gradient-hero p-6">

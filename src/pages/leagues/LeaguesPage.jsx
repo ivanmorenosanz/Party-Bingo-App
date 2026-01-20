@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, Trophy, Users, ChevronRight } from 'lucide-react';
 import Header from '../../components/navigation/Header';
 import BottomNav from '../../components/navigation/BottomNav';
-import { SAMPLE_LEAGUES, getLeaderboard } from '../../data/leagues';
+import { getAllLeagues, getLeaderboard, joinLeague } from '../../data/leagues';
 
 export default function LeaguesPage() {
     const navigate = useNavigate();
@@ -11,14 +11,19 @@ export default function LeaguesPage() {
     const [leagueCode, setLeagueCode] = useState('');
 
     const handleCreateLeague = () => {
-        // Mock create - would open a form
-        alert('League creation coming soon!');
+        navigate('/create-league');
     };
 
     const handleJoinLeague = () => {
         if (leagueCode.length >= 4) {
-            setShowJoinModal(false);
-            alert(`Joined league with code: ${leagueCode}`);
+            const result = joinLeague(leagueCode, 'user_1', 'You');
+            if (result.success) {
+                setShowJoinModal(false);
+                setLeagueCode('');
+                navigate(`/leagues/${result.league.id}`);
+            } else {
+                alert(result.error);
+            }
         }
     };
 
@@ -53,7 +58,7 @@ export default function LeaguesPage() {
                 <div>
                     <h2 className="text-lg font-bold text-gray-800 mb-4">My Leagues</h2>
                     <div className="space-y-3">
-                        {SAMPLE_LEAGUES.map(league => {
+                        {getAllLeagues().map(league => {
                             const leaderboard = getLeaderboard(league);
                             const myRank = leaderboard.findIndex(m => m.name === 'You') + 1;
 
@@ -79,8 +84,8 @@ export default function LeaguesPage() {
                                     </div>
                                     <div className="text-right">
                                         <span className={`text-2xl font-bold ${myRank === 1 ? 'text-yellow-500' :
-                                                myRank === 2 ? 'text-gray-400' :
-                                                    myRank === 3 ? 'text-orange-400' : 'text-primary-600'
+                                            myRank === 2 ? 'text-gray-400' :
+                                                myRank === 3 ? 'text-orange-400' : 'text-primary-600'
                                             }`}>
                                             #{myRank}
                                         </span>
@@ -93,7 +98,7 @@ export default function LeaguesPage() {
                 </div>
 
                 {/* Empty State */}
-                {SAMPLE_LEAGUES.length === 0 && (
+                {getAllLeagues().length === 0 && (
                     <div className="text-center py-12">
                         <div className="text-6xl mb-4">🏆</div>
                         <h3 className="text-xl font-bold text-gray-800 mb-2">No Leagues Yet</h3>

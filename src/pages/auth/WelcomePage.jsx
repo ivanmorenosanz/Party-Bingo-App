@@ -1,7 +1,14 @@
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 
 export default function WelcomePage() {
     const navigate = useNavigate();
+    const { loginAsGuest } = useAuth();
+
+    const handleGuestLogin = () => {
+        loginAsGuest();
+        navigate('/');
+    };
 
     return (
         <div className="min-h-screen gradient-hero flex flex-col items-center justify-center p-6">
@@ -36,10 +43,24 @@ export default function WelcomePage() {
                 >
                     I Have an Account
                 </button>
+
+                {/* Guest option */}
+                <div className="pt-4">
+                    <button
+                        onClick={handleGuestLogin}
+                        className="w-full text-white/80 hover:text-white py-3 font-semibold transition-colors flex items-center justify-center gap-2"
+                    >
+                        <span>👤</span>
+                        <span>Join as Guest</span>
+                    </button>
+                    <p className="text-white/50 text-xs text-center mt-1">
+                        Limited access • No competitive bingos
+                    </p>
+                </div>
             </div>
 
             {/* Features preview */}
-            <div className="mt-12 flex gap-6 text-white/80 text-sm animate-slide-up" style={{ animationDelay: '0.4s' }}>
+            <div className="mt-8 flex gap-6 text-white/80 text-sm animate-slide-up" style={{ animationDelay: '0.4s' }}>
                 <div className="flex items-center gap-2">
                     <span>🎯</span>
                     <span>Private Rooms</span>

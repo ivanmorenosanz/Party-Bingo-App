@@ -1,5 +1,17 @@
-// Avatar cosmetics catalog
+// Avatar cosmetics catalog with pixel art references
 export const COSMETICS = {
+    // Pixel art characters (base avatars)
+    characters: [
+        { id: 'warrior', name: 'Warrior', price: 0, rarity: 'common', preview: '⚔️' },
+        { id: 'mage', name: 'Mage', price: 0, rarity: 'common', preview: '🔮' },
+        { id: 'rogue', name: 'Rogue', price: 100, rarity: 'uncommon', preview: '🗡️' },
+        { id: 'healer', name: 'Healer', price: 100, rarity: 'uncommon', preview: '💚' },
+        { id: 'knight', name: 'Knight', price: 200, rarity: 'rare', preview: '🛡️' },
+        { id: 'archer', name: 'Archer', price: 200, rarity: 'rare', preview: '🏹' },
+        { id: 'bard', name: 'Bard', price: 350, rarity: 'rare', preview: '🎵' },
+        { id: 'ninja', name: 'Ninja', price: 500, rarity: 'legendary', preview: '🥷' },
+    ],
+
     // Frames
     frames: [
         { id: 'default', name: 'Default', price: 0, rarity: 'common', preview: '⭕' },

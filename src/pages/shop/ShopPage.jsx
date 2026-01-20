@@ -1,13 +1,15 @@
 import { useState } from 'react';
-import { ShoppingBag, Sparkles, Check } from 'lucide-react';
+import { ShoppingBag, Sparkles, Check, Lock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import BottomNav from '../../components/navigation/BottomNav';
 import { COSMETICS, RARITY_COLORS } from '../../data/cosmetics';
 import { useWallet } from '../../context/WalletContext';
 import { useAuth } from '../../context/AuthContext';
+import PixelAvatar from '../../components/avatar/PixelAvatar';
 
 const CATEGORIES = [
+    { id: 'characters', name: 'Characters', icon: '👤' },
     { id: 'frames', name: 'Frames', icon: '⭕' },
     { id: 'backgrounds', name: 'Backgrounds', icon: '🎨' },
     { id: 'badges', name: 'Badges', icon: '🏷️' },
@@ -17,20 +19,63 @@ const CATEGORIES = [
 export default function ShopPage() {
     const navigate = useNavigate();
     const { coins, spendCoins, canAfford } = useWallet();
-    const { user, addCosmetic, updateAvatar } = useAuth();
-    const [activeCategory, setActiveCategory] = useState('frames');
+    const { user, addCosmetic, updateAvatar, isGuest } = useAuth();
+    const [activeCategory, setActiveCategory] = useState('characters');
     const [showPurchaseModal, setShowPurchaseModal] = useState(null);
+    const [showGuestModal, setShowGuestModal] = useState(false);
+
+    // Guest restriction - show upgrade modal
+    if (isGuest) {
+        return (
+            <div className="min-h-screen bg-gray-50 pb-24">
+                <Header title="Cosmetics Shop" showCoins />
+
+                <div className="p-6">
+                    <div className="card text-center py-12">
+                        <div className="bg-gray-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <Lock className="text-gray-400" size={40} />
+                        </div>
+                        <h2 className="text-2xl font-bold text-gray-800 mb-2">Shop Locked</h2>
+                        <p className="text-gray-500 mb-6">
+                            Create a free account to access the<br />cosmetics shop and customize your avatar!
+                        </p>
+                        <button
+                            onClick={() => navigate('/signup')}
+                            className="btn-primary"
+                        >
+                            Create Free Account
+                        </button>
+                        <button
+                            onClick={() => navigate('/login')}
+                            className="block w-full mt-3 text-primary-600 font-semibold"
+                        >
+                            I already have an account
+                        </button>
+                    </div>
+                </div>
+
+                <BottomNav />
+            </div>
+        );
+    }
 
     const items = COSMETICS[activeCategory] || [];
 
     const isOwned = (itemId) => user?.ownedCosmetics?.includes(itemId);
-    const isEquipped = (category, itemId) => user?.avatar?.[category.slice(0, -1)] === itemId;
+    const isEquipped = (category, itemId) => {
+        if (category === 'characters') return user?.avatar?.character === itemId;
+        const categoryKey = category.slice(0, -1);
+        return user?.avatar?.[categoryKey] === itemId;
+    };
 
     const handlePurchase = (item) => {
         if (isOwned(item.id)) {
-            // Equip it
-            const categoryKey = activeCategory.slice(0, -1); // Remove 's' from end
-            updateAvatar({ [categoryKey]: item.id });
+            if (activeCategory === 'characters') {
+                updateAvatar({ character: item.id });
+            } else {
+                const categoryKey = activeCategory.slice(0, -1);
+                updateAvatar({ [categoryKey]: item.id });
+            }
             return;
         }
 
@@ -46,11 +91,41 @@ export default function ShopPage() {
         spendCoins(item.price, `Purchased: ${item.name}`);
         addCosmetic(item.id);
 
-        // Auto-equip
-        const categoryKey = activeCategory.slice(0, -1);
-        updateAvatar({ [categoryKey]: item.id });
+        if (activeCategory === 'characters') {
+            updateAvatar({ character: item.id });
+        } else {
+            const categoryKey = activeCategory.slice(0, -1);
+            updateAvatar({ [categoryKey]: item.id });
+        }
 
         setShowPurchaseModal(null);
+    };
+
+    const renderItemPreview = (item, size = 64) => {
+        if (activeCategory === 'characters') {
+            return (
+                <PixelAvatar
+                    character={item.id}
+                    size={size}
+                    frame="default"
+                />
+            );
+        }
+        if (activeCategory === 'frames') {
+            return (
+                <PixelAvatar
+                    character={user?.avatar?.character || 'warrior'}
+                    size={size}
+                    frame={item.id}
+                />
+            );
+        }
+        return (
+            <div className={`w-16 h-16 mx-auto rounded-xl flex items-center justify-center text-3xl ${item.color ? `bg-gradient-to-br ${item.color}` : 'bg-gray-100'
+                }`}>
+                {item.preview || item.icon || '🎨'}
+            </div>
+        );
     };
 
     return (
@@ -64,7 +139,6 @@ export default function ShopPage() {
                     </div>
                 </div>
 
-                {/* Marketplace CTA */}
                 <button
                     onClick={() => navigate('/marketplace')}
                     className="w-full bg-white/20 backdrop-blur p-4 rounded-xl flex items-center gap-4"
@@ -81,15 +155,28 @@ export default function ShopPage() {
             </div>
 
             <div className="p-6 space-y-6">
-                {/* Categories */}
+                <div className="card flex items-center gap-4">
+                    <PixelAvatar
+                        character={user?.avatar?.character || 'warrior'}
+                        size={80}
+                        frame={user?.avatar?.frame || 'default'}
+                    />
+                    <div>
+                        <p className="text-sm text-gray-500">Your Avatar</p>
+                        <p className="font-bold text-gray-800">
+                            {COSMETICS.characters?.find(c => c.id === (user?.avatar?.character || 'warrior'))?.name || 'Warrior'}
+                        </p>
+                    </div>
+                </div>
+
                 <div className="flex gap-2 overflow-x-auto pb-2 -mx-6 px-6">
                     {CATEGORIES.map(cat => (
                         <button
                             key={cat.id}
                             onClick={() => setActiveCategory(cat.id)}
                             className={`flex items-center gap-2 px-4 py-2 rounded-full whitespace-nowrap transition-all ${activeCategory === cat.id
-                                    ? 'bg-primary-100 text-primary-700 font-semibold'
-                                    : 'bg-gray-100 text-gray-600'
+                                ? 'bg-primary-100 text-primary-700 font-semibold'
+                                : 'bg-gray-100 text-gray-600'
                                 }`}
                         >
                             <span>{cat.icon}</span>
@@ -98,7 +185,6 @@ export default function ShopPage() {
                     ))}
                 </div>
 
-                {/* Items Grid */}
                 <div className="grid grid-cols-2 gap-3">
                     {items.map(item => {
                         const owned = isOwned(item.id);
@@ -108,8 +194,7 @@ export default function ShopPage() {
                             <button
                                 key={item.id}
                                 onClick={() => handlePurchase(item)}
-                                className={`card text-center relative ${equipped ? 'ring-2 ring-primary-500 ring-offset-2' : ''
-                                    }`}
+                                className={`card text-center relative ${equipped ? 'ring-2 ring-primary-500 ring-offset-2' : ''}`}
                             >
                                 {equipped && (
                                     <div className="absolute top-2 right-2 bg-primary-500 w-6 h-6 rounded-full flex items-center justify-center">
@@ -117,9 +202,8 @@ export default function ShopPage() {
                                     </div>
                                 )}
 
-                                <div className={`w-16 h-16 mx-auto rounded-xl flex items-center justify-center text-3xl mb-3 ${item.color ? `bg-gradient-to-br ${item.color}` : 'bg-gray-100'
-                                    }`}>
-                                    {item.preview || item.icon || '🎨'}
+                                <div className="mb-3 flex justify-center">
+                                    {renderItemPreview(item)}
                                 </div>
 
                                 <h4 className="font-bold text-gray-800 text-sm">{item.name}</h4>
@@ -147,7 +231,6 @@ export default function ShopPage() {
                 </div>
             </div>
 
-            {/* Purchase Modal */}
             {showPurchaseModal && (
                 <div
                     className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6"
@@ -157,9 +240,8 @@ export default function ShopPage() {
                         className="bg-white rounded-2xl p-6 w-full max-w-sm animate-scale-in"
                         onClick={e => e.stopPropagation()}
                     >
-                        <div className={`w-20 h-20 mx-auto rounded-xl flex items-center justify-center text-4xl mb-4 ${showPurchaseModal.color ? `bg-gradient-to-br ${showPurchaseModal.color}` : 'bg-gray-100'
-                            }`}>
-                            {showPurchaseModal.preview || showPurchaseModal.icon || '🎨'}
+                        <div className="flex justify-center mb-4">
+                            {renderItemPreview(showPurchaseModal, 80)}
                         </div>
 
                         <h3 className="text-xl font-bold text-gray-800 text-center mb-2">
