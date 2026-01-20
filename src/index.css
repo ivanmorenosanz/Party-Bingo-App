@@ -1,0 +1,99 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  body {
+    @apply font-sans antialiased bg-gray-50 text-gray-900;
+    overscroll-behavior: none;
+  }
+  
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 rounded-full;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-gradient-to-r from-primary-600 to-accent-500 text-white font-bold py-4 px-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-200 active:scale-95;
+  }
+  
+  .btn-secondary {
+    @apply bg-white/20 backdrop-blur text-white font-bold py-4 px-6 rounded-2xl border-2 border-white/30 hover:bg-white/30 transition-all duration-200;
+  }
+  
+  .btn-outline {
+    @apply bg-white text-primary-600 font-bold py-4 px-6 rounded-2xl shadow-md hover:shadow-lg transition-all duration-200 active:scale-95;
+  }
+  
+  .card {
+    @apply bg-white p-6 rounded-2xl shadow-md hover:shadow-lg transition-shadow duration-200;
+  }
+  
+  .card-glass {
+    @apply bg-white/20 backdrop-blur-lg rounded-2xl border border-white/30;
+  }
+  
+  .input-field {
+    @apply w-full p-4 rounded-xl border-2 border-gray-200 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all duration-200;
+  }
+  
+  .input-glass {
+    @apply w-full p-4 rounded-xl bg-white/20 backdrop-blur border-2 border-white/30 text-white placeholder-white/60 focus:outline-none focus:border-white transition-all duration-200;
+  }
+  
+  .gradient-hero {
+    @apply bg-gradient-to-br from-primary-600 via-accent-500 to-orange-400;
+  }
+  
+  .gradient-header {
+    @apply bg-gradient-to-r from-primary-600 to-accent-500;
+  }
+  
+  .badge {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold;
+  }
+  
+  .badge-primary {
+    @apply badge bg-primary-100 text-primary-700;
+  }
+  
+  .badge-success {
+    @apply badge bg-green-100 text-green-700;
+  }
+  
+  .badge-warning {
+    @apply badge bg-yellow-100 text-yellow-700;
+  }
+  
+  .badge-coming-soon {
+    @apply badge bg-gradient-to-r from-primary-500 to-accent-500 text-white animate-pulse-glow;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary-600 to-accent-500;
+  }
+  
+  .safe-area-bottom {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+  
+  .safe-area-top {
+    padding-top: max(1rem, env(safe-area-inset-top));
+  }
+}
