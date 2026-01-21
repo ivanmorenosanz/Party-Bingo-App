@@ -20,7 +20,7 @@ export default function RewardsPage() {
     const isUnlocked = (rewardId) => unlockedRewards.includes(rewardId);
 
     return (
-        <div className="min-h-screen bg-gray-50 pb-24">
+        <div className="min-h-screen pb-24">
             <Header title="My Rewards" showBack backPath="/profile" />
 
             <div className="p-6 space-y-6">

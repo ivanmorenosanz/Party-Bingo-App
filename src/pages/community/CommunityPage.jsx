@@ -22,7 +22,7 @@ export default function CommunityPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 pb-24">
+        <div className="min-h-screen pb-24">
             <div className="gradient-header p-6 pb-4 rounded-b-3xl shadow-lg">
                 <h1 className="text-2xl font-bold text-white mb-4">Community Bingos</h1>
 

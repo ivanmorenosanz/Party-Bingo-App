@@ -65,7 +65,7 @@ export default function CreateBingoPage() {
     const creatorEarnings = Math.floor(price * 0.7); // 70% to creator
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen">
             <Header title="Create Bingo" showBack backPath="/community" />
 
             <div className="p-6 space-y-6 pb-32">

@@ -11,17 +11,29 @@ export default function BingoDetailPage() {
     const { id } = useParams();
     const navigate = useNavigate();
     const { coins, spendCoins, canAfford } = useWallet();
-    const { createRoom } = useGame();
+    const { createRoom, activeGames, currentGameCode } = useGame();
     const { isGuest } = useAuth();
+
     const [showPurchaseModal, setShowPurchaseModal] = useState(false);
     const [showGuestModal, setShowGuestModal] = useState(false);
+    const [isCreating, setIsCreating] = useState(false);
+
+    useEffect(() => {
+        if (isCreating && currentGameCode) {
+            navigate(`/room/${currentGameCode}`);
+            setIsCreating(false);
+        }
+    }, [currentGameCode, isCreating, navigate]);
 
     const bingo = getBingoById(id);
 
-    if (!bingo) {
-        navigate('/community');
-        return null;
-    }
+    useEffect(() => {
+        if (!bingo) {
+            navigate('/community');
+        }
+    }, [bingo, navigate]);
+
+    if (!bingo) return null;
 
     const isCompetitive = bingo.type === 'serious';
 
@@ -50,19 +62,19 @@ export default function BingoDetailPage() {
             items = shuffleArray(items).slice(0, bingo.gridSize * bingo.gridSize);
         }
 
-        const room = createRoom({
+        setIsCreating(true);
+        createRoom({
             name: bingo.title,
             gridSize: bingo.gridSize,
-            type: bingo.type,
+            type: bingo.type || 'fun',
             items: items,
+            gameMode: bingo.gameMode || 'first_to_line',
             communityBingoId: bingo.id,
         });
 
         if (bingo.price > 0) {
             spendCoins(bingo.price, `Purchased: ${bingo.title}`);
         }
-
-        navigate(`/play/${room.code}`);
     };
 
     const shuffleArray = (array) => {
@@ -75,8 +87,8 @@ export default function BingoDetailPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 pb-32">
-            <Header title={bingo.title} showBack backPath="/community" showCoins />
+        <div className="min-h-screen pb-32">
+            <Header title={bingo.title} showBack backPath="/" showCoins />
 
             <div className="p-6 space-y-6">
                 {/* Hero */}

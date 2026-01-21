@@ -29,12 +29,25 @@ export const NEWS_ITEMS = [
     },
 ];
 
+export const BUG_FIXES = [
+    { id: 1, text: "Fixed issue where Host View only showed 9 items instad of all.", date: "2026-01-21" },
+    { id: 2, text: "Fixed Classic Mode not awarding Bingo for full house.", date: "2026-01-21" },
+    { id: 3, text: "Improved coin icon visibility across all screens.", date: "2026-01-20" },
+    { id: 4, text: "Fixed back button behavior to keep games in background.", date: "2026-01-21" },
+];
+
+export const CONTACT_INFO = {
+    x: { handle: '@ivanms', url: 'https://twitter.com/ivanms' },
+    instagram: { handle: '@ivanms', url: 'https://instagram.com/ivanms' },
+    email: 'ivanmorenosanz2@gmail.com',
+};
+
 // App links
 export const APP_LINKS = {
     playStore: 'https://play.google.com/store/apps/details?id=com.partybingo.app',
     appStore: 'https://apps.apple.com/app/party-bingo/id123456789',
     website: 'https://partybingo.app',
-    support: 'mailto:support@partybingo.app',
+    support: 'mailto:ivanmorenosanz2@gmail.com',
 };
 
 // Get featured news

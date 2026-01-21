@@ -125,7 +125,7 @@ export default function GameplayPage() {
     const activeSkin = getSkinById(user?.activeSkin || 'default');
 
     // Host view mode: 'host' = see all items to call, 'player' = see own board
-    const [hostViewMode, setHostViewMode] = useState('host');
+    const [hostViewMode, setHostViewMode] = useState('player');
 
     if (!socket) {
         return (

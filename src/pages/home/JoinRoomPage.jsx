@@ -87,7 +87,7 @@ export default function JoinRoomPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen">
             <Header title="Join Room" showBack />
 
             <div className="p-6 flex flex-col items-center justify-center" style={{ minHeight: 'calc(100vh - 200px)' }}>

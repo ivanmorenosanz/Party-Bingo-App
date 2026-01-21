@@ -59,7 +59,7 @@ export default function CreateLeaguePage() {
     // Success screen after creation
     if (createdLeague) {
         return (
-            <div className="min-h-screen bg-gray-50">
+            <div className="min-h-screen">
                 <Header title="League Created!" showBack backPath="/leagues" />
 
                 <div className="p-6 space-y-6">
@@ -159,8 +159,8 @@ export default function CreateLeaguePage() {
                         <button
                             onClick={() => setIsPrivate(true)}
                             className={`card flex items-center gap-3 transition-all ${isPrivate
-                                    ? 'ring-2 ring-primary-500 bg-primary-50'
-                                    : 'hover:bg-gray-50'
+                                ? 'ring-2 ring-primary-500 bg-primary-50'
+                                : 'hover:bg-gray-50'
                                 }`}
                         >
                             <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isPrivate ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-500'
@@ -175,8 +175,8 @@ export default function CreateLeaguePage() {
                         <button
                             onClick={() => setIsPrivate(false)}
                             className={`card flex items-center gap-3 transition-all ${!isPrivate
-                                    ? 'ring-2 ring-primary-500 bg-primary-50'
-                                    : 'hover:bg-gray-50'
+                                ? 'ring-2 ring-primary-500 bg-primary-50'
+                                : 'hover:bg-gray-50'
                                 }`}
                         >
                             <div className={`w-10 h-10 rounded-full flex items-center justify-center ${!isPrivate ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-500'

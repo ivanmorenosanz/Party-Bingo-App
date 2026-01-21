@@ -332,11 +332,44 @@ export const initSocket = (httpServer) => {
 
                 // Toggle logic for host
                 const existingIndex = room.calledSquares.indexOf(masterIndex);
-                if (existingIndex === -1) {
+                const isCalling = existingIndex === -1; // True if we are adding it
+
+                if (isCalling) {
                     room.calledSquares.push(masterIndex);
                 } else {
                     room.calledSquares.splice(existingIndex, 1);
                 }
+
+                // AUTO-MARK LOGIC: Update markedSquares for ALL players
+                if (!room.markedSquares) room.markedSquares = {};
+
+                room.players.forEach(player => {
+                    const playerId = player.id; // socket id
+                    // Get current marks or empty
+                    const playerMarks = new Set(room.markedSquares[playerId] || []);
+
+                    // Find which square on THEIR board corresponds to this masterIndex
+                    const boardMapping = player.boardMapping || [];
+
+                    // If no mapping (legacy?), assume direct mapping 1:1
+                    if (!player.boardMapping) {
+                        if (isCalling) playerMarks.add(masterIndex);
+                        else playerMarks.delete(masterIndex);
+                    } else {
+                        boardMapping.forEach((mIdx, lIdx) => {
+                            if (mIdx === masterIndex) {
+                                if (isCalling) {
+                                    playerMarks.add(lIdx);
+                                } else {
+                                    playerMarks.delete(lIdx);
+                                }
+                            }
+                        });
+                    }
+
+                    // Save back to room state
+                    room.markedSquares[playerId] = Array.from(playerMarks);
+                });
 
                 // Server-side Win Check
                 // "First to Line" = any line (row/col/diagonal) wins
@@ -365,7 +398,10 @@ export const initSocket = (httpServer) => {
                     return true;
                 };
 
-                if (room.gameMode === 'first_to_line') {
+                // If gameMode is not set, default based on type
+                const mode = room.gameMode || 'classic';
+
+                if (mode === 'first_to_line') {
                     // First to Line: Check for any completed line
                     for (const player of room.players) {
                         // Rows
@@ -373,7 +409,7 @@ export const initSocket = (httpServer) => {
                             const rowIndices = Array.from({ length: size }, (_, j) => i * size + j);
                             if (checkLine(rowIndices, player.boardMapping)) {
                                 winner = player;
-                                winReason = 'line_completed';
+                                winReason = 'row_completed';
                                 break;
                             }
                         }
@@ -384,7 +420,7 @@ export const initSocket = (httpServer) => {
                             const colIndices = Array.from({ length: size }, (_, j) => i + j * size);
                             if (checkLine(colIndices, player.boardMapping)) {
                                 winner = player;
-                                winReason = 'line_completed';
+                                winReason = 'col_completed';
                                 break;
                             }
                         }
@@ -394,23 +430,24 @@ export const initSocket = (httpServer) => {
                         const diag1 = Array.from({ length: size }, (_, i) => i * (size + 1));
                         if (checkLine(diag1, player.boardMapping)) {
                             winner = player;
-                            winReason = 'line_completed';
+                            winReason = 'diag_completed';
                             break;
                         }
 
                         const diag2 = Array.from({ length: size }, (_, i) => (i + 1) * (size - 1));
                         if (checkLine(diag2, player.boardMapping)) {
                             winner = player;
-                            winReason = 'line_completed';
+                            winReason = 'diag_completed';
                             break;
                         }
                     }
-                } else if (room.gameMode === 'classic') {
-                    // Classic: Check for full house (BINGO - all squares marked)
+                } else {
+                    // Classic (default): Check for full house (BINGO - all squares marked)
+                    // Also check for full house if mode explicitly classic
                     for (const player of room.players) {
                         if (checkFullHouse(player.boardMapping)) {
                             winner = player;
-                            winReason = 'bingo';
+                            winReason = 'full_house';
                             break;
                         }
                     }

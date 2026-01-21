@@ -1,21 +1,64 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Users, Trophy, Sparkles, Play, Timer, Coins, X } from 'lucide-react';
+import { Plus, Users, Trophy, Sparkles, Play, Timer, Coins, X, TrendingUp } from 'lucide-react';
+import PnLChart from '../../components/charts/PnLChart';
 import { useAuth } from '../../context/AuthContext';
 import { useWallet } from '../../context/WalletContext';
 import { useGame } from '../../context/GameContext';
 import BottomNav from '../../components/navigation/BottomNav';
-import { COMMUNITY_BINGOS } from '../../data/bingos';
+import { COMMUNITY_BINGOS, getFeaturedBingos } from '../../data/bingos';
 import { getUserLeagues, getLeaderboard } from '../../data/leagues';
 
 export default function HomePage() {
     const navigate = useNavigate();
     const { user } = useAuth();
-    const { coins } = useWallet();
+    const { coins, transactions } = useWallet();
     const { activeGames } = useGame();
     const [showBuyCoinsModal, setShowBuyCoinsModal] = useState(false);
 
-    const featuredBingos = COMMUNITY_BINGOS.slice(0, 3);
+    // Countdown Logic
+    const [timeLeft, setTimeLeft] = useState({});
+
+    const calculateTimeLeft = (endTime) => {
+        const difference = new Date(endTime) - new Date();
+        if (difference <= 0) return null;
+
+        const days = Math.floor(difference / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((difference / (1000 * 60 * 60)) % 24);
+        const minutes = Math.floor((difference / 1000 / 60) % 60);
+
+        if (days > 0) return `${days}d ${hours}h`;
+        if (hours > 0) return `${hours}h ${minutes}m`;
+        return `${minutes}m`;
+    };
+
+    useEffect(() => {
+        const timer = setInterval(() => {
+            const newTimeLeft = {};
+            COMMUNITY_BINGOS.forEach(bingo => {
+                if (bingo.endsAt) {
+                    const left = calculateTimeLeft(bingo.endsAt);
+                    if (left) newTimeLeft[bingo.id] = left;
+                }
+            });
+            setTimeLeft(newTimeLeft);
+        }, 60000); // Update every minute
+
+        // Initial calculation
+        const initialTimeLeft = {};
+        COMMUNITY_BINGOS.forEach(bingo => {
+            if (bingo.endsAt) {
+                const left = calculateTimeLeft(bingo.endsAt);
+                if (left) initialTimeLeft[bingo.id] = left;
+            }
+        });
+        setTimeLeft(initialTimeLeft);
+
+        return () => clearInterval(timer);
+    }, []);
+
+    const featuredBingos = getFeaturedBingos().filter(b => !b.endsAt || calculateTimeLeft(b.endsAt)); // Hide expired
+    const trendingBingos = COMMUNITY_BINGOS.filter(b => !b.featured).slice(0, 5); // Show top 5 trending non-featured
     const myActiveGames = activeGames.filter(g => g.status !== 'finished');
 
     // Get user's leagues
@@ -26,7 +69,7 @@ export default function HomePage() {
         : 0;
 
     return (
-        <div className="min-h-screen bg-gray-50 pb-24">
+        <div className="min-h-screen pb-24">
             {/* Header */}
             <div className="gradient-header p-6 rounded-b-3xl shadow-lg">
                 <div className="flex items-center justify-between mb-6">
@@ -49,30 +92,79 @@ export default function HomePage() {
                 </div>
 
                 {/* Quick Stats */}
-                <div className="grid grid-cols-3 gap-3">
-                    <div className="bg-white/20 backdrop-blur rounded-xl p-3 text-center">
-                        <p className="text-2xl font-bold text-white">{user?.stats?.gamesWon || 0}</p>
-                        <p className="text-white/80 text-xs">Wins</p>
+                <div className="space-y-4 mb-6">
+                    {/* Top Row: Compact Wins & Streak */}
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-white/20 backdrop-blur rounded-xl p-2 text-center">
+                            <p className="text-xl font-bold text-white">{user?.stats?.gamesWon || 0}</p>
+                            <p className="text-white/80 text-[10px] font-medium uppercase tracking-wider">Wins</p>
+                        </div>
+                        <div className="bg-white/20 backdrop-blur rounded-xl p-2 text-center">
+                            <p className="text-xl font-bold text-white">{user?.stats?.currentStreak || 0}</p>
+                            <p className="text-white/80 text-[10px] font-medium uppercase tracking-wider">Streak 🔥</p>
+                        </div>
                     </div>
-                    <div className="bg-white/20 backdrop-blur rounded-xl p-3 text-center">
-                        <p className="text-2xl font-bold text-white">{user?.stats?.currentStreak || 0}</p>
-                        <p className="text-white/80 text-xs">Streak 🔥</p>
-                    </div>
-                    <div className="bg-white/20 backdrop-blur rounded-xl p-3 text-center">
-                        <p className="text-2xl font-bold text-white">{user?.rewards?.length || 0}</p>
-                        <p className="text-white/80 text-xs">Badges</p>
+
+                    {/* Bottom Row: Full Width PnL */}
+                    <div className="bg-white/20 backdrop-blur rounded-2xl p-4 min-h-[160px] flex flex-col items-center justify-center relative overflow-hidden group">
+                        {/* PnL Chart fills container */}
+                        <div className="w-full h-full relative z-10 flex flex-col items-center justify-center">
+                            <PnLChart transactions={transactions} width={300} height={80} />
+                        </div>
                     </div>
                 </div>
             </div>
 
             {/* Content */}
             <div className="p-6 space-y-6">
-                {/* Active Games */}
+
+                {/* Quick Actions */}
+                <div className="grid grid-cols-2 gap-4">
+                    <button
+                        onClick={() => navigate('/create-room')}
+                        className="relative h-48 rounded-3xl overflow-hidden shadow-lg hover:scale-[1.02] transition-transform group"
+                    >
+                        <div className="absolute inset-0 bg-gradient-to-br from-primary-500/90 to-primary-600/90 z-10"></div>
+                        <div
+                            className="absolute inset-0 opacity-20 z-0 bg-repeat bg-[length:100px_100px]"
+                            style={{ backgroundImage: 'url(/bingo_pattern.png)' }}
+                        ></div>
+
+                        <div className="relative z-20 h-full flex flex-col items-center justify-center text-white p-4">
+                            <div className="bg-white/20 w-16 h-16 rounded-full flex items-center justify-center mb-4 backdrop-blur-sm group-hover:scale-110 transition-transform">
+                                <Plus className="text-white" size={32} />
+                            </div>
+                            <h3 className="text-2xl font-bold mb-1">Create Room</h3>
+                            <p className="text-primary-100 text-sm">Start a new game</p>
+                        </div>
+                    </button>
+
+                    <button
+                        onClick={() => navigate('/join-room')}
+                        className="relative h-48 rounded-3xl overflow-hidden shadow-lg hover:scale-[1.02] transition-transform group"
+                    >
+                        <div className="absolute inset-0 bg-gradient-to-br from-accent-500/90 to-accent-600/90 z-10"></div>
+                        <div
+                            className="absolute inset-0 opacity-20 z-0 bg-repeat bg-[length:100px_100px]"
+                            style={{ backgroundImage: 'url(/bingo_pattern.png)' }}
+                        ></div>
+
+                        <div className="relative z-20 h-full flex flex-col items-center justify-center text-white p-4">
+                            <div className="bg-white/20 w-16 h-16 rounded-full flex items-center justify-center mb-4 backdrop-blur-sm group-hover:scale-110 transition-transform">
+                                <Users className="text-white" size={32} />
+                            </div>
+                            <h3 className="text-2xl font-bold mb-1">Join Room</h3>
+                            <p className="text-accent-100 text-sm">Enter room code</p>
+                        </div>
+                    </button>
+                </div>
+
+                {/* Active Bingos */}
                 {myActiveGames.length > 0 && (
                     <div>
                         <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
                             <Play size={24} className="text-primary-600" />
-                            Active Games
+                            Active Bingos
                         </h2>
                         <div className="space-y-3">
                             {myActiveGames.map(game => (
@@ -106,29 +198,54 @@ export default function HomePage() {
                     </div>
                 )}
 
-                {/* Quick Actions */}
-                <div className="grid grid-cols-2 gap-4">
-                    <button
-                        onClick={() => navigate('/create-room')}
-                        className="card hover:scale-[1.02] transition-transform"
-                    >
-                        <div className="bg-primary-100 w-12 h-12 rounded-full flex items-center justify-center mb-3">
-                            <Plus className="text-primary-600" size={24} />
-                        </div>
-                        <h3 className="font-bold text-gray-800">Create Room</h3>
-                        <p className="text-sm text-gray-500 mt-1">Start a new game</p>
-                    </button>
+                {/* Featured Bingos */}
+                <div>
+                    <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                        <Sparkles size={24} className="text-yellow-500" />
+                        Featured Bingos
+                    </h2>
+                    <div className="flex gap-4 overflow-x-auto pb-4 -mx-6 px-6 scrollbar-hide">
+                        {featuredBingos.map(bingo => (
+                            <button
+                                key={bingo.id}
+                                onClick={() => navigate(`/community/${bingo.id}`)}
+                                className="min-w-[260px] bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex-shrink-0 text-left relative overflow-hidden group"
+                            >
+                                <div className="absolute top-0 right-0 z-10 flex flex-col items-end gap-1">
+                                    {bingo.seasonal && (
+                                        <div className="bg-accent-500 text-white text-xs font-bold px-3 py-1 rounded-bl-xl">
+                                            {bingo.badge || 'Seasonal'}
+                                        </div>
+                                    )}
+                                    {/* Timer Badge */}
+                                    {bingo.endsAt && timeLeft[bingo.id] && (
+                                        <div className="bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-l-xl flex items-center gap-1 animate-pulse">
+                                            <Timer size={12} />
+                                            {timeLeft[bingo.id]}
+                                        </div>
+                                    )}
+                                </div>
 
-                    <button
-                        onClick={() => navigate('/join-room')}
-                        className="card hover:scale-[1.02] transition-transform"
-                    >
-                        <div className="bg-accent-100 w-12 h-12 rounded-full flex items-center justify-center mb-3">
-                            <Users className="text-accent-600" size={24} />
-                        </div>
-                        <h3 className="font-bold text-gray-800">Join Room</h3>
-                        <p className="text-sm text-gray-500 mt-1">Enter room code</p>
-                    </button>
+                                <div className="mb-3 pt-6"> {/* Added padding top if badges overlap */}
+                                    <h3 className="font-bold text-gray-800 text-lg group-hover:text-primary-600 transition-colors line-clamp-1">
+                                        {bingo.title}
+                                    </h3>
+                                    <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                                        <span className="bg-gray-100 px-2 py-0.5 rounded-full">{bingo.tags[0]}</span>
+                                        <span>• {bingo.plays} plays</span>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-3 gap-1 opacity-60">
+                                    {bingo.items.slice(0, 3).map((item, i) => (
+                                        <div key={i} className="aspect-square bg-gray-50 rounded-lg flex items-center justify-center p-1 text-[8px] text-center border border-gray-100">
+                                            {item}
+                                        </div>
+                                    ))}
+                                </div>
+                            </button>
+                        ))}
+                    </div>
                 </div>
 
                 {/* Leagues Preview */}
@@ -164,7 +281,10 @@ export default function HomePage() {
                 {/* Trending Bingos */}
                 <div>
                     <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-xl font-bold text-gray-800">Trending Bingos</h2>
+                        <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                            <TrendingUp size={24} className="text-primary-600" />
+                            Trending Bingos
+                        </h2>
                         <button
                             onClick={() => navigate('/community')}
                             className="text-primary-600 font-semibold text-sm"
@@ -172,28 +292,28 @@ export default function HomePage() {
                             Browse All
                         </button>
                     </div>
-                    <div className="space-y-3">
-                        {featuredBingos.map(bingo => (
+                    <div className="flex gap-4 overflow-x-auto pb-4 -mx-6 px-6 scrollbar-hide">
+                        {trendingBingos.map(bingo => (
                             <button
                                 key={bingo.id}
                                 onClick={() => navigate(`/community/${bingo.id}`)}
-                                className="w-full card flex items-center gap-4 text-left"
+                                className="min-w-[220px] bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex-shrink-0 text-left relative overflow-hidden group"
                             >
-                                <div className="bg-gradient-to-br from-primary-400 to-accent-400 w-12 h-12 rounded-xl flex items-center justify-center text-white text-xl">
-                                    {bingo.type === 'serious' ? '🎯' : '🎉'}
-                                </div>
-                                <div className="flex-1">
-                                    <h3 className="font-bold text-gray-800">{bingo.title}</h3>
-                                    <div className="flex items-center gap-2 mt-1">
-                                        <span className="text-sm text-gray-500">by {bingo.creator}</span>
-                                        {bingo.type === 'serious' && (
-                                            <span className="badge-primary text-xs">Competitive</span>
-                                        )}
+                                <div className="mb-3">
+                                    <h3 className="font-bold text-gray-800 text-lg group-hover:text-primary-600 transition-colors line-clamp-1">
+                                        {bingo.title}
+                                    </h3>
+                                    <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                                        <span className="bg-gray-100 px-2 py-0.5 rounded-full">{bingo.tags[0]}</span>
+                                        <span>• {bingo.plays} plays</span>
                                     </div>
                                 </div>
-                                <div className="text-right">
-                                    <p className="text-primary-600 font-bold">{bingo.plays}</p>
-                                    <p className="text-xs text-gray-500">plays</p>
+                                <div className="grid grid-cols-3 gap-1 opacity-60">
+                                    {bingo.items.slice(0, 3).map((item, i) => (
+                                        <div key={i} className="aspect-square bg-gray-50 rounded-lg flex items-center justify-center p-1 text-[8px] text-center border border-gray-100">
+                                            {item}
+                                        </div>
+                                    ))}
                                 </div>
                             </button>
                         ))}

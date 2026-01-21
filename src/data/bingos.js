@@ -9,6 +9,7 @@ export const COMMUNITY_BINGOS = [
         rating: 4.8,
         type: 'fun', // fun or serious
         price: 0, // Free for fun bingos
+        gameMode: 'first_to_line',
         gridSize: 3,
         items: [
             'Someone spills a drink',
@@ -23,6 +24,10 @@ export const COMMUNITY_BINGOS = [
         ],
         tags: ['party', 'friends', 'weekend'],
         createdAt: '2026-01-15',
+        featured: true,
+        seasonal: false,
+        badge: 'Weekend Special',
+        endsAt: '2026-01-25T23:59:59', // Sunday night
     },
     {
         id: 'movie_night',
@@ -33,6 +38,7 @@ export const COMMUNITY_BINGOS = [
         rating: 4.5,
         type: 'fun',
         price: 0,
+        gameMode: 'first_to_line',
         gridSize: 3,
         items: [
             'Someone cries',
@@ -47,6 +53,7 @@ export const COMMUNITY_BINGOS = [
         ],
         tags: ['movies', 'cinema', 'netflix'],
         createdAt: '2026-01-10',
+        featured: false,
     },
     {
         id: 'game_night',
@@ -57,6 +64,7 @@ export const COMMUNITY_BINGOS = [
         rating: 4.7,
         type: 'fun',
         price: 0,
+        gameMode: 'first_to_line',
         gridSize: 3,
         items: [
             'Rules argument',
@@ -71,6 +79,7 @@ export const COMMUNITY_BINGOS = [
         ],
         tags: ['games', 'board games', 'tabletop'],
         createdAt: '2026-01-08',
+        featured: false,
     },
     {
         id: 'football_match',
@@ -81,6 +90,7 @@ export const COMMUNITY_BINGOS = [
         rating: 4.9,
         type: 'serious',
         price: 25,
+        gameMode: 'first_to_line',
         gridSize: 5,
         items: [
             'First goal before 15min',
@@ -111,6 +121,10 @@ export const COMMUNITY_BINGOS = [
         ],
         tags: ['sports', 'football', 'soccer', 'predictions'],
         createdAt: '2026-01-18',
+        featured: true,
+        seasonal: true,
+        badge: 'Champions League Special',
+        endsAt: '2026-01-23T20:45:00', // Upcoming match
     },
     {
         id: 'wedding_bingo',
@@ -121,6 +135,7 @@ export const COMMUNITY_BINGOS = [
         rating: 4.6,
         type: 'serious',
         price: 15,
+        gameMode: 'first_to_line',
         gridSize: 4,
         items: [
             'Someone cries during speech',
@@ -139,9 +154,14 @@ export const COMMUNITY_BINGOS = [
             'Guest leaves early',
             'Photo booth visit',
             'Garter toss',
+            'Late arrival',
         ],
         tags: ['wedding', 'events', 'celebration'],
         createdAt: '2026-01-12',
+        featured: true,
+        seasonal: true,
+        badge: 'Season Special',
+        endsAt: '2026-02-01T00:00:00', // End of month
     },
 ];
 
@@ -167,3 +187,5 @@ export const searchBingos = (query) => {
         b.creator.toLowerCase().includes(q)
     );
 };
+
+export const getFeaturedBingos = () => COMMUNITY_BINGOS.filter(b => b.featured);

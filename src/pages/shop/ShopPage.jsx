@@ -27,7 +27,7 @@ export default function ShopPage() {
     // Guest restriction - show upgrade modal
     if (isGuest) {
         return (
-            <div className="min-h-screen bg-gray-50 pb-24">
+            <div className="min-h-screen pb-24">
                 <Header title="Cosmetics Shop" showCoins />
 
                 <div className="p-6">

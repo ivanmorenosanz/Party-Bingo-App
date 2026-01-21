@@ -159,7 +159,7 @@ export default function CreateRoomPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen">
             <Header title="Create Room" showBack />
 
             <div className="p-6 space-y-6 pb-32">

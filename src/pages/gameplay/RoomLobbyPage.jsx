@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Users, Copy, Check, Share2, Sparkles, Send, CheckCircle } from 'lucide-react';
+import { Users, Copy, Check, Share2, Sparkles, Send, CheckCircle, AlertTriangle } from 'lucide-react';
 import Header from '../../components/navigation/Header';
 import { useGame } from '../../context/GameContext';
 import { useAuth } from '../../context/AuthContext';
@@ -11,6 +11,7 @@ export default function RoomLobbyPage() {
     const { activeGames, startGame, leaveRoom, updateGame, socket } = useGame();
     const { user } = useAuth();
     const [copied, setCopied] = useState(false);
+    const [showLeaveConfirmation, setShowLeaveConfirmation] = useState(false);
 
     const currentRoom = activeGames.find(g => g.code === code);
     const players = currentRoom?.players || [];
@@ -129,6 +130,15 @@ export default function RoomLobbyPage() {
     };
 
     const handleLeave = () => {
+        if (currentRoom?.entryFee > 0) {
+            setShowLeaveConfirmation(true);
+        } else {
+            leaveRoom(code);
+            navigate('/');
+        }
+    };
+
+    const confirmLeave = () => {
         leaveRoom(code);
         navigate('/');
     };
@@ -147,7 +157,7 @@ export default function RoomLobbyPage() {
 
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen">
             <Header
                 title={currentRoom?.name || 'Room'}
                 showBack
@@ -356,6 +366,36 @@ export default function RoomLobbyPage() {
                     Leave Room
                 </button>
             </div>
+
+            {/* Leave Confirmation Modal */}
+            {showLeaveConfirmation && (
+                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-6 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white rounded-2xl p-6 max-w-sm w-full text-center animate-scale-in shadow-2xl">
+                        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <AlertTriangle className="text-red-500" size={32} />
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-800 mb-2">Leave Room?</h3>
+                        <p className="text-gray-600 mb-6">
+                            This room has an entry fee of <strong>{currentRoom?.entryFee} coins</strong>.
+                            If you leave now, you might lose your stake if the game has already started or if per-game rules apply.
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowLeaveConfirmation(false)}
+                                className="flex-1 py-3 font-semibold text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={confirmLeave}
+                                className="flex-1 py-3 font-bold text-white bg-red-500 rounded-xl hover:bg-red-600 shadow-lg shadow-red-500/30"
+                            >
+                                Leave Anyway
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
