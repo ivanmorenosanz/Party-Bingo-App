@@ -33,7 +33,7 @@ function App() {
     const { isAuthenticated } = useAuth();
 
     return (
-        <div className="min-h-screen bg-gray-50 relative">
+        <div className="min-h-screen relative">
             <BingoBackground />
             <div className="relative z-10">
                 <Routes>

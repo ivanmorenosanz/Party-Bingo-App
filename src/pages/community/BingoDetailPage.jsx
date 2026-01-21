@@ -5,7 +5,7 @@ import { getBingoById } from '../../data/bingos';
 import { useWallet } from '../../context/WalletContext';
 import { useGame } from '../../context/GameContext';
 import { useAuth } from '../../context/AuthContext';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function BingoDetailPage() {
     const { id } = useParams();
@@ -27,13 +27,25 @@ export default function BingoDetailPage() {
 
     const bingo = getBingoById(id);
 
+    console.log('BingoDetailPage ID:', id);
+    console.log('Bingo Object:', bingo);
+
     useEffect(() => {
         if (!bingo) {
-            navigate('/community');
+            console.warn('Bingo not found, redirecting...');
+            // navigate('/community'); // Commenting out auto-redirect for debugging
         }
     }, [bingo, navigate]);
 
-    if (!bingo) return null;
+    if (!bingo) {
+        return (
+            <div className="min-h-screen pt-24 text-center">
+                <h1 className="text-2xl font-bold text-red-500">Bingo Not Found</h1>
+                <p>ID: {id}</p>
+                <button onClick={() => navigate('/community')} className="btn-primary mt-4">Back</button>
+            </div>
+        );
+    }
 
     const isCompetitive = bingo.type === 'serious';
 
