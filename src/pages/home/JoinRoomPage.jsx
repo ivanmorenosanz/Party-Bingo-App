@@ -1,15 +1,39 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, QrCode } from 'lucide-react';
+import { Users, QrCode, Coins } from 'lucide-react';
 import Header from '../../components/navigation/Header';
 import { useGame } from '../../context/GameContext';
+import { useAuth } from '../../context/AuthContext';
+import { useWallet } from '../../context/WalletContext';
 import { COMMUNITY_BINGOS } from '../../data/bingos';
 
 export default function JoinRoomPage() {
     const navigate = useNavigate();
-    const { joinRoom } = useGame();
+    const { user } = useAuth();
+    const { joinRoom, activeGames, socket } = useGame();
+    const { spendCoins, coins } = useWallet();
     const [roomCode, setRoomCode] = useState('');
     const [error, setError] = useState('');
+    const [isJoining, setIsJoining] = useState(false);
+    const [paymentModal, setPaymentModal] = useState(null);
+
+    // Navigate when room is joined
+    useEffect(() => {
+        if (isJoining && activeGames.find(g => g.code === roomCode)) {
+            navigate(`/room/${roomCode}`);
+        }
+    }, [activeGames, isJoining, roomCode, navigate]);
+
+    const executeJoin = () => {
+        const player = {
+            name: user?.username || 'Guest',
+            id: user?.id,
+            isHost: false
+        };
+
+        setIsJoining(true);
+        joinRoom(roomCode, player);
+    };
 
     const handleJoinRoom = () => {
         if (roomCode.length !== 6) {
@@ -17,16 +41,43 @@ export default function JoinRoomPage() {
             return;
         }
 
-        // Mock room data - in production would fetch from server
-        const mockRoom = {
-            name: 'Demo Room',
-            items: COMMUNITY_BINGOS[0].items,
-            gridSize: 3,
-            type: 'fun',
-        };
+        setIsJoining(true);
+        setError('');
 
-        joinRoom(roomCode, mockRoom);
-        navigate(`/room/${roomCode.toUpperCase()}`);
+        if (socket) {
+            socket.emit('check_room', { code: roomCode }, (response) => {
+                if (!response.exists) {
+                    setError('Room not found');
+                    setIsJoining(false);
+                    return;
+                }
+
+                if (response.entryFee > 0) {
+                    setPaymentModal({
+                        name: response.name,
+                        fee: response.entryFee,
+                        type: response.type
+                    });
+                    setIsJoining(false); // Pause to get confirmation
+                } else {
+                    executeJoin();
+                }
+            });
+        } else {
+            setError('Connection error. Please try again.');
+            setIsJoining(false);
+        }
+    };
+
+    const confirmPayment = () => {
+        if (coins < paymentModal.fee) {
+            setError(`Insufficient coins! You need ${paymentModal.fee} coins.`);
+            setPaymentModal(null);
+            return;
+        }
+        spendCoins(paymentModal.fee, `Entry fee for ${paymentModal.name}`);
+        setPaymentModal(null);
+        executeJoin();
     };
 
     const handleCodeChange = (e) => {
@@ -63,10 +114,10 @@ export default function JoinRoomPage() {
 
                 <button
                     onClick={handleJoinRoom}
-                    disabled={roomCode.length !== 6}
-                    className="w-full max-w-xs btn-primary disabled:opacity-50 disabled:cursor-not-allowed mt-4"
+                    disabled={roomCode.length !== 6 || isJoining}
+                    className="w-full max-w-xs btn-primary disabled:opacity-50 disabled:cursor-not-allowed mt-4 flex items-center justify-center gap-2"
                 >
-                    Join Room
+                    {isJoining ? 'Joining...' : 'Join Room'}
                 </button>
 
                 <div className="mt-8 flex items-center gap-2 text-gray-400">
@@ -80,6 +131,40 @@ export default function JoinRoomPage() {
                     <span>Scan QR Code</span>
                 </button>
             </div>
+
+            {/* Payment Modal */}
+            {paymentModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6">
+                    <div className="bg-white p-8 rounded-3xl text-center animate-scale-in max-w-sm w-full">
+                        <div className="bg-yellow-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <Coins className="text-yellow-600" size={32} />
+                        </div>
+                        <h3 className="text-2xl font-bold text-gray-800 mb-2">Entry Fee Required</h3>
+                        <p className="text-gray-600 mb-6">
+                            This is a competitive room. Join <strong>{paymentModal.name}</strong> for:
+                        </p>
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6">
+                            <span className="text-3xl font-bold text-gray-800 flex items-center justify-center gap-2">
+                                {paymentModal.fee} <Coins className="text-yellow-500" size={24} />
+                            </span>
+                        </div>
+                        <div className="space-y-3">
+                            <button
+                                onClick={confirmPayment}
+                                className="w-full btn-primary"
+                            >
+                                Pay & Join
+                            </button>
+                            <button
+                                onClick={() => setPaymentModal(null)}
+                                className="w-full py-3 text-gray-500 font-semibold"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

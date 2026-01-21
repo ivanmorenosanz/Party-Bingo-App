@@ -5,6 +5,7 @@ import { useWallet } from '../../context/WalletContext';
 import { useGame } from '../../context/GameContext';
 import BottomNav from '../../components/navigation/BottomNav';
 import { COMMUNITY_BINGOS } from '../../data/bingos';
+import { getUserLeagues, getLeaderboard } from '../../data/leagues';
 
 export default function HomePage() {
     const navigate = useNavigate();
@@ -14,6 +15,13 @@ export default function HomePage() {
 
     const featuredBingos = COMMUNITY_BINGOS.slice(0, 3);
     const myActiveGames = activeGames.filter(g => g.status !== 'finished');
+
+    // Get user's leagues
+    const myLeagues = user?.id ? getUserLeagues(user.id) : [];
+    const featuredLeague = myLeagues[0];
+    const featuredLeagueRank = featuredLeague
+        ? getLeaderboard(featuredLeague).findIndex(m => m.id === user.id) + 1
+        : 0;
 
     return (
         <div className="min-h-screen bg-gray-50 pb-24">
@@ -114,30 +122,34 @@ export default function HomePage() {
                 </div>
 
                 {/* Leagues Preview */}
-                <div>
-                    <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-xl font-bold text-gray-800">Your Leagues</h2>
+                {featuredLeague && (
+                    <div>
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-xl font-bold text-gray-800">Your Leagues</h2>
+                            <button
+                                onClick={() => navigate('/leagues')}
+                                className="text-primary-600 font-semibold text-sm"
+                            >
+                                View All
+                            </button>
+                        </div>
                         <button
-                            onClick={() => navigate('/leagues')}
-                            className="text-primary-600 font-semibold text-sm"
+                            onClick={() => navigate(`/leagues/${featuredLeague.id}`)}
+                            className="w-full card flex items-center gap-4"
                         >
-                            View All
+                            <div className="bg-yellow-100 w-12 h-12 rounded-full flex items-center justify-center">
+                                <Trophy className="text-yellow-600" size={24} />
+                            </div>
+                            <div className="text-left flex-1">
+                                <h3 className="font-bold text-gray-800">{featuredLeague.name}</h3>
+                                <p className="text-sm text-gray-500">
+                                    {featuredLeague.members.length} members • #{featuredLeagueRank} on leaderboard
+                                </p>
+                            </div>
+                            <span className="text-primary-600 font-bold">#{featuredLeagueRank}</span>
                         </button>
                     </div>
-                    <button
-                        onClick={() => navigate('/leagues')}
-                        className="w-full card flex items-center gap-4"
-                    >
-                        <div className="bg-yellow-100 w-12 h-12 rounded-full flex items-center justify-center">
-                            <Trophy className="text-yellow-600" size={24} />
-                        </div>
-                        <div className="text-left flex-1">
-                            <h3 className="font-bold text-gray-800">Friday Night Crew</h3>
-                            <p className="text-sm text-gray-500">4 members • #2 on leaderboard</p>
-                        </div>
-                        <span className="text-primary-600 font-bold">#2</span>
-                    </button>
-                </div>
+                )}
 
                 {/* Trending Bingos */}
                 <div>

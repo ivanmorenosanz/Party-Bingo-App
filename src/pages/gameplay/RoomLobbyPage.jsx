@@ -8,12 +8,15 @@ import { useAuth } from '../../context/AuthContext';
 export default function RoomLobbyPage() {
     const navigate = useNavigate();
     const { code } = useParams();
-    const { activeGames, startGame, leaveRoom, updateGame } = useGame();
+    const { activeGames, startGame, leaveRoom, updateGame, socket } = useGame();
     const { user } = useAuth();
     const [copied, setCopied] = useState(false);
 
     const currentRoom = activeGames.find(g => g.code === code);
     const players = currentRoom?.players || [];
+    const isHost = currentRoom?.players?.find(p => p.id === socket?.id)?.isHost;
+
+
 
     // Crowd Shuffle state
     const [mySquares, setMySquares] = useState([]);
@@ -24,15 +27,17 @@ export default function RoomLobbyPage() {
     const isCrowdShuffle = currentRoom?.gameMode === 'crowd_shuffle';
     const squaresPerPlayer = currentRoom?.squaresPerPlayer || 3;
 
-    // Initialize with just the current user (no mock players)
-    useEffect(() => {
-        if (currentRoom && (!currentRoom.players || currentRoom.players.length === 0)) {
-            updateGame(code, {
-                players: [{ id: user?.id || 'host', name: user?.username || 'You', isHost: currentRoom.isHost, markedCount: 0, hasSubmitted: false }]
-            });
-        }
-    }, [code, currentRoom?.id, user]); // reduced deps to avoid infinite loop
+    // ...
 
+    const allPlayersSubmitted = players.every(p => p.hasSubmitted);
+    const canStartGame = isCrowdShuffle ? (allPlayersSubmitted && isHost) : isHost;
+
+    // Auto-navigate to game when status changes to playing
+    useEffect(() => {
+        if (currentRoom?.status === 'playing') {
+            navigate(`/play/${code}`);
+        }
+    }, [currentRoom?.status, code, navigate]);
     const copyRoomCode = async () => {
         try {
             await navigator.clipboard.writeText(code);
@@ -124,7 +129,7 @@ export default function RoomLobbyPage() {
     };
 
     const handleLeave = () => {
-        // Just navigate away, don't destroy game so it can be resumed
+        leaveRoom(code);
         navigate('/');
     };
 
@@ -139,8 +144,7 @@ export default function RoomLobbyPage() {
         return null;
     }
 
-    const allPlayersSubmitted = players.every(p => p.hasSubmitted);
-    const canStartGame = isCrowdShuffle ? (allPlayersSubmitted && currentRoom?.isHost) : currentRoom?.isHost;
+
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -332,7 +336,7 @@ export default function RoomLobbyPage() {
                     <div className="text-center p-4 bg-pink-50 rounded-xl">
                         <p className="text-pink-700 font-semibold">Submit your squares to continue</p>
                     </div>
-                ) : !currentRoom?.isHost ? (
+                ) : !isHost ? (
                     <div className="text-center p-4 bg-primary-50 rounded-xl">
                         <div className="animate-pulse flex items-center justify-center gap-2">
                             <div className="w-2 h-2 bg-primary-600 rounded-full"></div>

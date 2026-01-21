@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Settings, ChevronRight, LogOut, Trophy, Coins, Gift, User, Edit2 } from 'lucide-react';
+import { Settings, ChevronRight, LogOut, Trophy, Coins, Gift, User, Edit2, Copy } from 'lucide-react';
 import Header from '../../components/navigation/Header';
 import BottomNav from '../../components/navigation/BottomNav';
 import { useAuth } from '../../context/AuthContext';
@@ -52,6 +52,19 @@ export default function ProfilePage() {
 
                     <h2 className="text-2xl font-bold text-gray-800 mt-4">{user?.username}</h2>
                     <p className="text-gray-500">{user?.email}</p>
+                    <button
+                        onClick={() => {
+                            if (user?.id) {
+                                navigator.clipboard.writeText(user.id);
+                                alert('ID copied to clipboard!');
+                            }
+                        }}
+                        className="inline-flex items-center gap-1.5 mt-2 px-3 py-1 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors group"
+                        title="Click to copy ID"
+                    >
+                        <span className="text-xs text-gray-500 font-mono">ID: {user?.id}</span>
+                        <Copy size={12} className="text-gray-400 group-hover:text-gray-600" />
+                    </button>
 
                     <div className="flex justify-center gap-2 mt-3">
                         {user?.rewards?.slice(0, 3).map(rewardId => (

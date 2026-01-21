@@ -41,13 +41,35 @@ app.use((err, req, res, next) => {
     res.status(500).json({ error: 'Internal server error' });
 });
 
+// Serve static files in production
+const distPath = path.join(__dirname, '../dist');
+app.use(express.static(distPath));
+
+// Handle SPA routing - return index.html for all non-API routes
+app.get('*', (req, res) => {
+    if (req.path.startsWith('/api')) {
+        return res.status(404).json({ error: 'API endpoint not found' });
+    }
+    res.sendFile(path.join(distPath, 'index.html'));
+});
+
+
 // Start server after DB init
 async function start() {
     try {
         await initDb();
         console.log('📦 Database initialized');
 
-        app.listen(PORT, () => {
+        // Create HTTP server
+        const { createServer } = await import('http');
+        const httpServer = createServer(app);
+
+        // Initialize Socket.IO
+        const { initSocket } = await import('./socket.js');
+        initSocket(httpServer);
+        console.log('🔌 Socket.IO initialized');
+
+        httpServer.listen(PORT, () => {
             console.log(`🎲 Bingo API Server running on http://localhost:${PORT}`);
             console.log(`   Database: ${path.join(__dirname, 'bingo.db')}`);
         });
