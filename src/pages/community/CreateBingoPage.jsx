@@ -92,8 +92,8 @@ export default function CreateBingoPage() {
                         <button
                             onClick={() => handleTypeChange('fun')}
                             className={`p-4 rounded-xl border-2 transition-all ${bingoType === 'fun'
-                                    ? 'border-primary-500 bg-primary-50'
-                                    : 'border-gray-200 bg-white'
+                                ? 'border-primary-500 bg-primary-50'
+                                : 'border-gray-200 bg-white'
                                 }`}
                         >
                             <span className="text-2xl mb-2 block">🎉</span>
@@ -103,8 +103,8 @@ export default function CreateBingoPage() {
                         <button
                             onClick={() => handleTypeChange('serious')}
                             className={`p-4 rounded-xl border-2 transition-all ${bingoType === 'serious'
-                                    ? 'border-primary-500 bg-primary-50'
-                                    : 'border-gray-200 bg-white'
+                                ? 'border-primary-500 bg-primary-50'
+                                : 'border-gray-200 bg-white'
                                 }`}
                         >
                             <span className="text-2xl mb-2 block">🎯</span>
@@ -149,8 +149,8 @@ export default function CreateBingoPage() {
                                 />
                             </div>
                             {price > 0 && (
-                                <p className="text-sm text-green-600 mt-2">
-                                    You'll earn <strong>{creatorEarnings} 🪙</strong> per purchase!
+                                <p className="text-sm text-green-600 mt-2 flex items-center gap-1">
+                                    You'll earn <strong className="flex items-center gap-1">{creatorEarnings} <Coins size={14} className="text-yellow-500" /></strong> per purchase!
                                 </p>
                             )}
                         </div>
@@ -168,8 +168,8 @@ export default function CreateBingoPage() {
                                 key={value}
                                 onClick={() => handleGridSizeChange(value)}
                                 className={`flex-1 p-3 rounded-xl border-2 transition-all ${gridSize === value
-                                        ? 'border-primary-500 bg-primary-50'
-                                        : 'border-gray-200 bg-white'
+                                    ? 'border-primary-500 bg-primary-50'
+                                    : 'border-gray-200 bg-white'
                                     }`}
                             >
                                 <span className="font-bold text-gray-800">{label}</span>

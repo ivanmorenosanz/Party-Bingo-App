@@ -102,8 +102,8 @@ export default function ProfilePage() {
                 <div className="card">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <div className="bg-yellow-100 w-12 h-12 rounded-xl flex items-center justify-center text-2xl">
-                                🪙
+                            <div className="bg-yellow-100 w-12 h-12 rounded-xl flex items-center justify-center">
+                                <Coins className="text-yellow-500" size={24} />
                             </div>
                             <div>
                                 <p className="text-sm text-gray-500">Balance</p>

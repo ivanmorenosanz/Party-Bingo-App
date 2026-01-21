@@ -183,20 +183,30 @@ export const initSocket = (httpServer) => {
             }
         });
 
+        // Audio Reactions
+        socket.on('send_reaction', (data) => {
+            const { code, reactionId, emoji } = data;
+            const room = rooms.get(code);
+
+            if (room) {
+                const player = room.players.find(p => p.id === socket.id);
+                if (player) {
+                    // Broadcast to all players in room
+                    io.to(code).emit('reaction_received', {
+                        reactionId,
+                        emoji,
+                        playerId: socket.id,
+                        playerName: player.name,
+                        timestamp: Date.now(),
+                    });
+                }
+            }
+        });
+
+
         socket.on('start_game', (code) => {
             const room = rooms.get(code);
             if (room) {
-                room.status = 'playing';
-                room.startTime = Date.now();
-
-                // Generate random board mapping for each player
-                // Mapping is an array of indices [0, 1, 2...] shuffled
-                // Even for "Classic Fun" (same board), we can just use 0..N mapping or identity
-                // But user wants randomness. Let's apply it if gameMode is 'crowd_shuffle' OR 'classic' (if requested).
-                // User Request: "When a host creates a bingo... those 9 squares should be randomly distributed... so each user has different cardboards"
-                // This implies we should ALWAYS shuffle for "Competitive" type, or maybe always for this User.
-                // Let's check room.type (serious vs fun).
-
                 // Helper to shuffle array
                 const shuffle = (array) => {
                     for (let i = array.length - 1; i > 0; i--) {
@@ -206,19 +216,100 @@ export const initSocket = (httpServer) => {
                     return array;
                 };
 
-                const itemCount = room.items ? room.items.length : (room.gridSize * room.gridSize);
-                const masterIndices = Array.from({ length: itemCount }, (_, i) => i);
-                const targetSquareCount = (room.gridSize || 3) * (room.gridSize || 3);
+                if (room.gameMode === 'crowd_shuffle') {
+                    // Crowd Shuffle: Enter "collecting" phase
+                    room.status = 'collecting';
+                    room.startTime = Date.now();
+                    room.contributions = {}; // playerId -> [squares]
+                    room.minSquaresPerPlayer = Math.ceil(9 / (room.players.length + 1));
+
+                    rooms.set(code, room);
+                    io.to(code).emit('game_started', room);
+                } else {
+                    // Classic / First to Line: Go directly to playing
+                    room.status = 'playing';
+                    room.startTime = Date.now();
+
+                    const itemCount = room.items ? room.items.length : (room.gridSize * room.gridSize);
+                    const masterIndices = Array.from({ length: itemCount }, (_, i) => i);
+                    const targetSquareCount = (room.gridSize || 3) * (room.gridSize || 3);
+
+                    room.players.forEach(p => {
+                        const shuffled = shuffle([...masterIndices]);
+                        p.boardMapping = shuffled.slice(0, targetSquareCount);
+                    });
+
+                    rooms.set(code, room);
+                    io.to(code).emit('game_started', room);
+                }
+            }
+        });
+
+        // Crowd Shuffle: Submit squares
+        socket.on('submit_squares', (data) => {
+            const { code, squares } = data;
+            const room = rooms.get(code);
+
+            if (!room || room.status !== 'collecting') {
+                socket.emit('error', 'Cannot submit squares at this time');
+                return;
+            }
+
+            const player = room.players.find(p => p.id === socket.id);
+            if (!player) {
+                socket.emit('error', 'Player not in room');
+                return;
+            }
+
+            // Validate minimum squares
+            if (!squares || squares.length < room.minSquaresPerPlayer) {
+                socket.emit('error', `Please submit at least ${room.minSquaresPerPlayer} squares`);
+                return;
+            }
+
+            // Store contribution
+            const playerId = player.userId || player.id;
+            room.contributions[playerId] = squares.filter(s => s && s.trim());
+
+            rooms.set(code, room);
+            io.to(code).emit('contribution_updated', {
+                contributions: room.contributions,
+                playersSubmitted: Object.keys(room.contributions).length,
+                totalPlayers: room.players.length
+            });
+
+            // Check if all players submitted
+            const allSubmitted = room.players.every(p => {
+                const pid = p.userId || p.id;
+                return room.contributions[pid] && room.contributions[pid].length >= room.minSquaresPerPlayer;
+            });
+
+            if (allSubmitted) {
+                // Generate boards from pooled squares
+                const allSquares = Object.values(room.contributions).flat();
+                room.items = allSquares;
+                room.status = 'playing';
+
+                // Shuffle helper
+                const shuffle = (array) => {
+                    for (let i = array.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [array[i], array[j]] = [array[j], array[i]];
+                    }
+                    return array;
+                };
+
+                const gridSize = room.gridSize || 3;
+                const targetSquareCount = gridSize * gridSize;
+                const masterIndices = Array.from({ length: allSquares.length }, (_, i) => i);
 
                 room.players.forEach(p => {
-                    // Always shuffle and slice for randomness as per request
-                    // "we want some randomness... different cardboards"
                     const shuffled = shuffle([...masterIndices]);
                     p.boardMapping = shuffled.slice(0, targetSquareCount);
                 });
 
                 rooms.set(code, room);
-                io.to(code).emit('game_started', room);
+                io.to(code).emit('boards_generated', room);
             }
         });
 
@@ -247,76 +338,110 @@ export const initSocket = (httpServer) => {
                     room.calledSquares.splice(existingIndex, 1);
                 }
 
-                // Server-side Win Check for "First to Line" and "Classic"
-                if (room.gameMode === 'first_to_line' || room.gameMode === 'classic') {
-                    const size = room.gridSize || 3;
-                    let winner = null;
+                // Server-side Win Check
+                // "First to Line" = any line (row/col/diagonal) wins
+                // "Classic" = full house (all squares) wins (BINGO!)
+                const size = room.gridSize || 3;
+                let winner = null;
+                let winReason = '';
 
-                    // Helper to check if a set of local indices is fully called
-                    const checkLine = (localIndices, playerMapping) => {
-                        return localIndices.every(localIdx => {
-                            // If player has a mapping, use it. Otherwise assume identity (masterIndex = localIdx)
-                            // Note: boardMapping stores master indices at local positions.
-                            const mappedMasterIdx = playerMapping ? playerMapping[localIdx] : localIdx;
-                            return room.calledSquares.includes(mappedMasterIdx);
-                        });
-                    };
+                // Helper to check if a set of local indices is fully called
+                const checkLine = (localIndices, playerMapping) => {
+                    return localIndices.every(localIdx => {
+                        const mappedMasterIdx = playerMapping ? playerMapping[localIdx] : localIdx;
+                        return room.calledSquares.includes(mappedMasterIdx);
+                    });
+                };
 
+                // Helper to check if ALL squares are marked (full house/bingo)
+                const checkFullHouse = (playerMapping) => {
+                    const totalSquares = size * size;
+                    for (let localIdx = 0; localIdx < totalSquares; localIdx++) {
+                        const mappedMasterIdx = playerMapping ? playerMapping[localIdx] : localIdx;
+                        if (!room.calledSquares.includes(mappedMasterIdx)) {
+                            return false;
+                        }
+                    }
+                    return true;
+                };
+
+                if (room.gameMode === 'first_to_line') {
+                    // First to Line: Check for any completed line
                     for (const player of room.players) {
-                        // 1. Rows
+                        // Rows
                         for (let i = 0; i < size; i++) {
                             const rowIndices = Array.from({ length: size }, (_, j) => i * size + j);
                             if (checkLine(rowIndices, player.boardMapping)) {
                                 winner = player;
+                                winReason = 'line_completed';
                                 break;
                             }
                         }
                         if (winner) break;
 
-                        // 2. Columns
+                        // Columns
                         for (let i = 0; i < size; i++) {
                             const colIndices = Array.from({ length: size }, (_, j) => i + j * size);
                             if (checkLine(colIndices, player.boardMapping)) {
                                 winner = player;
+                                winReason = 'line_completed';
                                 break;
                             }
                         }
                         if (winner) break;
 
-                        // 3. Diagonals
+                        // Diagonals
                         const diag1 = Array.from({ length: size }, (_, i) => i * (size + 1));
                         if (checkLine(diag1, player.boardMapping)) {
                             winner = player;
+                            winReason = 'line_completed';
                             break;
                         }
 
                         const diag2 = Array.from({ length: size }, (_, i) => (i + 1) * (size - 1));
                         if (checkLine(diag2, player.boardMapping)) {
                             winner = player;
+                            winReason = 'line_completed';
                             break;
                         }
                     }
-
-                    if (winner) {
-                        room.status = 'finished';
-                        room.winnerId = winner.userId || winner.id; // Store winner ID
-
-                        // Calculate final leaderboard for everyone
-                        const leaderboard = room.players.map(p => {
-                            const stats = calculatePlayerScore(p, room);
-                            if (p.id === winner.id || (p.userId && p.userId === winner.userId)) {
-                                stats.isWinner = true;
-                            }
-                            return stats;
-                        }).sort((a, b) => b.score - a.score);
-
-                        io.to(code).emit('game_ended', {
-                            winnerId: room.winnerId,
-                            winnerName: winner.name,
-                            reason: 'line_completed',
-                            leaderboard // Broadcast full standby
-                        });
+                } else if (room.gameMode === 'classic') {
+                    // Classic: Check for full house (BINGO - all squares marked)
+                    for (const player of room.players) {
+                        if (checkFullHouse(player.boardMapping)) {
+                            winner = player;
+                            winReason = 'bingo';
+                            break;
+                        }
                     }
+                }
+
+                if (winner) {
+                    room.status = 'finished';
+                    room.winnerId = winner.userId || winner.id;
+
+                    // Calculate final leaderboard
+                    const leaderboard = room.players.map(p => {
+                        const stats = calculatePlayerScore(p, room);
+                        if (p.id === winner.id || (p.userId && p.userId === winner.userId)) {
+                            stats.isWinner = true;
+                        }
+                        return stats;
+                    }).sort((a, b) => b.score - a.score);
+
+                    // Calculate prize for competitive games
+                    let prizeAmount = 0;
+                    if (room.type === 'serious' && room.entryFee > 0) {
+                        prizeAmount = room.entryFee * room.players.length;
+                    }
+
+                    io.to(code).emit('game_ended', {
+                        winnerId: room.winnerId,
+                        winnerName: winner.name,
+                        reason: winReason,
+                        leaderboard,
+                        prizeAmount
+                    });
                 }
 
                 rooms.set(code, room);

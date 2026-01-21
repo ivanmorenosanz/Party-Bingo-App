@@ -1,10 +1,9 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { io } from 'socket.io-client';
 
 const GameContext = createContext(null);
 
 // Connect to backend socket
-// In development, we need to point to port 3001. In production, we are served from the same origin.
 const SOCKET_URL = import.meta.env.PROD ? undefined : 'http://localhost:3001';
 
 const socket = io(SOCKET_URL, {
@@ -13,12 +12,16 @@ const socket = io(SOCKET_URL, {
 });
 
 export function GameProvider({ children }) {
-    // Current active game state (single source of truth from server)
-    const [gameState, setGameState] = useState(null);
+    // Multi-game state: Map of code -> game state
+    const [activeGames, setActiveGames] = useState({});
+    // Track which game is currently in foreground (being viewed)
+    const [currentGameCode, setCurrentGameCode] = useState(null);
     const [isConnected, setIsConnected] = useState(socket.connected);
-
     const [gameResult, setGameResult] = useState(null);
     const [notification, setNotification] = useState(null);
+
+    // Derived: current game state (for compatibility)
+    const gameState = currentGameCode ? activeGames[currentGameCode] : null;
 
     useEffect(() => {
         function onConnect() {
@@ -33,48 +36,79 @@ export function GameProvider({ children }) {
 
         function onRoomCreated(room) {
             console.log("Room created", room);
-            setGameState(room);
+            setActiveGames(prev => ({ ...prev, [room.code]: room }));
+            setCurrentGameCode(room.code);
             setGameResult(null);
         }
 
         function onRoomJoined(room) {
             console.log("Room joined", room);
-            setGameState(room);
+            setActiveGames(prev => ({ ...prev, [room.code]: room }));
+            setCurrentGameCode(room.code);
             setGameResult(null);
         }
 
         function onRoomUpdated(room) {
             console.log("Room updated", room);
-            setGameState(room);
+            setActiveGames(prev => ({ ...prev, [room.code]: room }));
         }
 
         function onGameStarted(room) {
             console.log("Game started", room);
-            setGameState(room);
+            setActiveGames(prev => ({ ...prev, [room.code]: room }));
             setGameResult(null);
         }
 
         function onGameEnded(result) {
             console.log("Game ended", result);
             setGameResult(result);
-            setGameState(prev => prev ? { ...prev, status: 'finished', winnerId: result.winnerId } : prev);
+            // Update the game status in activeGames
+            setActiveGames(prev => {
+                const updated = { ...prev };
+                // Find game by winnerId context or current game
+                if (currentGameCode && updated[currentGameCode]) {
+                    updated[currentGameCode] = {
+                        ...updated[currentGameCode],
+                        status: 'finished',
+                        winnerId: result.winnerId
+                    };
+                }
+                return updated;
+            });
         }
 
         function onBingoAnnounced({ playerId }) {
-            // Find player name
-            const player = gameState?.players?.find(p => p.id === playerId);
+            const currentGame = currentGameCode ? activeGames[currentGameCode] : null;
+            const player = currentGame?.players?.find(p => p.id === playerId);
             const name = player?.name || 'Unknown Player';
 
-            // Show notification instead of alert
             setNotification({
                 id: Date.now(),
                 type: 'bingo',
                 message: `BINGO announced by ${name}!`,
                 duration: 5000
             });
-
-            // Auto clear
             setTimeout(() => setNotification(null), 5000);
+        }
+
+        function onContributionUpdated(data) {
+            setActiveGames(prev => {
+                const updated = { ...prev };
+                Object.keys(updated).forEach(code => {
+                    if (updated[code].status === 'collecting') {
+                        updated[code] = { ...updated[code], contributionProgress: data };
+                    }
+                });
+                return updated;
+            });
+        }
+
+        function onBoardsGenerated(room) {
+            setActiveGames(prev => ({ ...prev, [room.code]: room }));
+        }
+
+        function onReactionReceived(data) {
+            window.dispatchEvent(new CustomEvent('bingo-reaction', { detail: data }));
         }
 
         function onError(message) {
@@ -95,6 +129,9 @@ export function GameProvider({ children }) {
         socket.on('game_started', onGameStarted);
         socket.on('game_ended', onGameEnded);
         socket.on('bingo_announced', onBingoAnnounced);
+        socket.on('contribution_updated', onContributionUpdated);
+        socket.on('boards_generated', onBoardsGenerated);
+        socket.on('reaction_received', onReactionReceived);
         socket.on('error', onError);
 
         return () => {
@@ -106,12 +143,14 @@ export function GameProvider({ children }) {
             socket.off('game_started', onGameStarted);
             socket.off('game_ended', onGameEnded);
             socket.off('bingo_announced', onBingoAnnounced);
+            socket.off('contribution_updated', onContributionUpdated);
+            socket.off('boards_generated', onBoardsGenerated);
+            socket.off('reaction_received', onReactionReceived);
             socket.off('error', onError);
         };
-    }, [gameState]); // Added gameState dependency to find player name
+    }, [currentGameCode, activeGames]);
 
     const createRoom = (roomData, player) => {
-        // We act as if we are a "user". In a real app we'd have auth context user ID/Name
         const hostPlayer = player || { name: 'Host', isHost: true };
         socket.emit('create_room', {
             roomData,
@@ -120,32 +159,48 @@ export function GameProvider({ children }) {
     };
 
     const joinRoom = (code, player) => {
-        // Player should have name
-        socket.emit('join_room', {
-            code,
-            player
-        });
+        socket.emit('join_room', { code, player });
     };
+
+    // Focus on a specific game (bring to foreground)
+    const focusGame = useCallback((code) => {
+        setCurrentGameCode(code);
+        // Rejoin socket room if needed
+        if (activeGames[code]) {
+            socket.emit('join_room', {
+                code,
+                player: { name: activeGames[code].players?.find(p => p.id === socket.id)?.name || 'Player' }
+            });
+        }
+    }, [activeGames]);
+
+    // Put current game in background (navigate away without leaving)
+    const backgroundGame = useCallback(() => {
+        // Just clear the foreground, keep in activeGames
+        setCurrentGameCode(null);
+        setGameResult(null);
+    }, []);
 
     const startGame = (code) => {
         socket.emit('start_game', code);
     };
 
-    const toggleSquare = (code, index, masterIndex) => {
-        if (!gameState) return;
+    const submitSquares = (code, squares) => {
+        socket.emit('submit_squares', { code, squares });
+    };
 
-        // Check if I am host
-        const isHost = gameState.players?.find(p => p.id === socket.id)?.isHost;
+    const toggleSquare = (code, index, masterIndex) => {
+        const game = activeGames[code];
+        if (!game) return;
+
+        const isHost = game.players?.find(p => p.id === socket.id)?.isHost;
 
         if (isHost) {
-            // Host logic: Mark globally (Call the number using MASTER ID)
-            // If masterIndex is provided (from UI), use it. Otherwise fallback to index (if no mapping)
             const targetId = masterIndex !== undefined ? masterIndex : index;
             socket.emit('host_action_mark', { code, masterIndex: targetId });
         }
 
-        // Player logic: Mark my own board
-        const myMarked = gameState.markedSquares?.[socket.id] || [];
+        const myMarked = game.markedSquares?.[socket.id] || [];
         const newSet = new Set(myMarked);
 
         if (newSet.has(index)) {
@@ -157,22 +212,22 @@ export function GameProvider({ children }) {
         const newList = Array.from(newSet);
 
         // Optimistic update
-        setGameState(prev => {
-            if (!prev) return prev;
-            const prevMarked = prev.markedSquares || {};
-            return {
-                ...prev,
-                markedSquares: {
-                    ...prevMarked,
-                    [socket.id]: newList
-                }
-            };
+        setActiveGames(prev => {
+            const updated = { ...prev };
+            if (updated[code]) {
+                const prevMarked = updated[code].markedSquares || {};
+                updated[code] = {
+                    ...updated[code],
+                    markedSquares: {
+                        ...prevMarked,
+                        [socket.id]: newList
+                    }
+                };
+            }
+            return updated;
         });
 
-        socket.emit('marked_update', {
-            code,
-            markedSquares: newList
-        });
+        socket.emit('marked_update', { code, markedSquares: newList });
     };
 
     const checkWin = (game) => {
@@ -182,21 +237,16 @@ export function GameProvider({ children }) {
         const size = game.gridSize || 3;
         const winning = [];
 
-        // Rows
         for (let i = 0; i < size; i++) {
             winning.push(Array.from({ length: size }, (_, j) => i * size + j));
         }
-        // Columns
         for (let i = 0; i < size; i++) {
             winning.push(Array.from({ length: size }, (_, j) => j * size + i));
         }
-        // Diagonals
         winning.push(Array.from({ length: size }, (_, i) => i * size + i));
         winning.push(Array.from({ length: size }, (_, i) => i * size + (size - 1 - i)));
 
-        const isWin = winning.some(combo =>
-            combo.every(index => marked.has(index))
-        );
+        const isWin = winning.some(combo => combo.every(index => marked.has(index)));
 
         if (isWin) {
             socket.emit('bingo_call', { code: game.code });
@@ -212,36 +262,66 @@ export function GameProvider({ children }) {
         return marked.size === size * size;
     };
 
+    // Permanently leave a room (remove from activeGames)
     const leaveRoom = (code) => {
         socket.emit('leave_room', { code });
-        setGameState(null);
+        setActiveGames(prev => {
+            const updated = { ...prev };
+            delete updated[code];
+            return updated;
+        });
+        if (currentGameCode === code) {
+            setCurrentGameCode(null);
+        }
     };
 
-    // Compatibility helper
+    // Remove finished games from activeGames (cleanup)
+    const removeFinishedGame = (code) => {
+        setActiveGames(prev => {
+            const updated = { ...prev };
+            delete updated[code];
+            return updated;
+        });
+        if (currentGameCode === code) {
+            setCurrentGameCode(null);
+        }
+    };
+
     const getGame = (code) => {
-        if (gameState && gameState.code === code) return gameState;
-        return null;
+        return activeGames[code] || null;
     };
 
     const updateGame = (code, updates) => {
         socket.emit('room_update', { code, updates });
     };
 
+    // Get list of active games as array for UI
+    const getActiveGamesList = useCallback(() => {
+        return Object.values(activeGames).filter(g => g.status !== 'finished');
+    }, [activeGames]);
+
     return (
         <GameContext.Provider value={{
             isConnected,
-            activeGames: gameState ? [gameState] : [], // Compatibility shim
-            gameState, // Expose current main game state explicitly
-            gameResult, // Final game results (leaderboard)
-            notification, // New notification state
+            activeGames: Object.values(activeGames), // Compatibility: array of games
+            activeGamesMap: activeGames, // Direct access to map
+            currentGameCode,
+            gameState, // Current foreground game
+            gameResult,
+            notification,
             getGame,
+            getActiveGamesList,
             createRoom,
             joinRoom,
+            focusGame,
+            backgroundGame,
             startGame,
+            submitSquares,
             toggleSquare,
             checkWin,
             checkFullHouse,
             leaveRoom,
+            removeFinishedGame,
             updateGame,
             socket
         }}>

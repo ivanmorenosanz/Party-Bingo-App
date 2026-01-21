@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ShoppingBag, Sparkles, Check, Lock } from 'lucide-react';
+import { ShoppingBag, Sparkles, Check, Lock, Coins } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import BottomNav from '../../components/navigation/BottomNav';
@@ -134,7 +134,7 @@ export default function ShopPage() {
                 <div className="flex items-center justify-between mb-4">
                     <h1 className="text-2xl font-bold text-white">Cosmetics Shop</h1>
                     <div className="bg-white/20 backdrop-blur px-4 py-2 rounded-full flex items-center gap-2">
-                        <span className="text-lg">🪙</span>
+                        <Coins className="text-yellow-300" size={18} />
                         <span className="text-white font-bold">{coins}</span>
                     </div>
                 </div>
@@ -216,8 +216,8 @@ export default function ShopPage() {
                                     ) : item.price === 0 ? (
                                         <span className="text-sm text-gray-500">Free</span>
                                     ) : (
-                                        <span className="text-sm font-bold text-primary-600">
-                                            🪙 {item.price}
+                                        <span className="text-sm font-bold text-primary-600 flex items-center gap-1 justify-center">
+                                            <Coins size={14} className="text-yellow-500" /> {item.price}
                                         </span>
                                     )}
                                 </div>
@@ -248,8 +248,8 @@ export default function ShopPage() {
                             {showPurchaseModal.name}
                         </h3>
 
-                        <p className="text-gray-600 text-center mb-4">
-                            Purchase for <span className="font-bold text-primary-600">{showPurchaseModal.price} 🪙</span>?
+                        <p className="text-gray-600 text-center mb-4 flex items-center justify-center gap-1">
+                            Purchase for <span className="font-bold text-primary-600 flex items-center gap-1">{showPurchaseModal.price} <Coins size={14} className="text-yellow-500" /></span>?
                         </p>
 
                         <p className="text-sm text-gray-500 text-center mb-6">

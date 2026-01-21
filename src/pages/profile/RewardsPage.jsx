@@ -1,4 +1,4 @@
-import { Trophy, Lock } from 'lucide-react';
+import { Trophy, Lock, Coins } from 'lucide-react';
 import Header from '../../components/navigation/Header';
 import BottomNav from '../../components/navigation/BottomNav';
 import { useAuth } from '../../context/AuthContext';
@@ -59,8 +59,8 @@ export default function RewardsPage() {
                                     <div
                                         key={reward.id}
                                         className={`card relative transition-all ${unlocked
-                                                ? ''
-                                                : 'opacity-60 grayscale'
+                                            ? ''
+                                            : 'opacity-60 grayscale'
                                             }`}
                                     >
                                         {!unlocked && (
@@ -79,8 +79,8 @@ export default function RewardsPage() {
                                             <span className={`badge text-xs ${RARITY_COLORS[reward.rarity]}`}>
                                                 {unlocked ? 'Unlocked' : 'Locked'}
                                             </span>
-                                            <span className="text-xs font-semibold text-green-600">
-                                                +{reward.coins} 🪙
+                                            <span className="text-xs font-semibold text-green-600 flex items-center gap-1">
+                                                +{reward.coins} <Coins size={12} className="text-yellow-500" />
                                             </span>
                                         </div>
                                     </div>

@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { Coins } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 export default function WelcomePage() {
@@ -70,7 +71,7 @@ export default function WelcomePage() {
                     <span>Leagues</span>
                 </div>
                 <div className="flex items-center gap-2">
-                    <span>🪙</span>
+                    <Coins className="text-yellow-300" size={16} />
                     <span>Rewards</span>
                 </div>
             </div>

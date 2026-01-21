@@ -20,6 +20,7 @@ import ShopPage from './pages/shop/ShopPage';
 import MarketplacePage from './pages/shop/MarketplacePage';
 import ProfilePage from './pages/profile/ProfilePage';
 import RewardsPage from './pages/profile/RewardsPage';
+import NewsPage from './pages/news/NewsPage';
 
 function ProtectedRoute({ children }) {
     const { isAuthenticated } = useAuth();
@@ -57,6 +58,9 @@ function App() {
                 {/* Shop */}
                 <Route path="/shop" element={<ProtectedRoute><ShopPage /></ProtectedRoute>} />
                 <Route path="/marketplace" element={<ProtectedRoute><MarketplacePage /></ProtectedRoute>} />
+
+                {/* News */}
+                <Route path="/news" element={<ProtectedRoute><NewsPage /></ProtectedRoute>} />
 
                 {/* Profile */}
                 <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, User, Mail, Lock, CheckCircle, RefreshCw, AlertCircle } from 'lucide-react';
+import { ArrowLeft, User, Mail, Lock, CheckCircle, RefreshCw, AlertCircle, Coins } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useWallet } from '../../context/WalletContext';
 
@@ -234,7 +234,7 @@ export default function SignupPage() {
                         disabled={isLoading}
                         className={`w-full bg-white text-primary-600 py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all mt-6 ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
                     >
-                        {isLoading ? 'Creating Account...' : 'Sign Up & Get 50 🪙'}
+                        {isLoading ? 'Creating Account...' : 'Sign Up & Get 50 Coins'}
                     </button>
                 </form>
 

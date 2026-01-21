@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { Star, TrendingUp, Users, Grid, Play, Lock } from 'lucide-react';
+import { Star, TrendingUp, Users, Grid, Play, Lock, Coins } from 'lucide-react';
 import Header from '../../components/navigation/Header';
 import { getBingoById } from '../../data/bingos';
 import { useWallet } from '../../context/WalletContext';
@@ -162,8 +162,8 @@ export default function BingoDetailPage() {
                 <button
                     onClick={handlePlay}
                     className={`w-full flex items-center justify-center gap-3 ${isGuest && isCompetitive
-                            ? 'bg-gray-200 text-gray-500 font-bold py-4 px-6 rounded-2xl'
-                            : 'btn-primary'
+                        ? 'bg-gray-200 text-gray-500 font-bold py-4 px-6 rounded-2xl'
+                        : 'btn-primary'
                         }`}
                 >
                     {isGuest && isCompetitive ? (
@@ -175,14 +175,14 @@ export default function BingoDetailPage() {
                         <>
                             <Play size={20} />
                             <span>
-                                {bingo.price > 0 ? `Play for ${bingo.price} 🪙` : 'Play Now'}
+                                {bingo.price > 0 ? <span className="flex items-center gap-1">Play for {bingo.price} <Coins size={16} className="text-yellow-500" /></span> : 'Play Now'}
                             </span>
                         </>
                     )}
                 </button>
                 {bingo.price > 0 && !isGuest && (
                     <p className="text-center text-sm text-gray-500 mt-2">
-                        You have {coins} 🪙
+                        You have {coins} <Coins size={14} className="text-yellow-500 inline" />
                     </p>
                 )}
             </div>
@@ -237,7 +237,7 @@ export default function BingoDetailPage() {
                             Purchase Bingo
                         </h3>
                         <p className="text-gray-600 text-center mb-6">
-                            This will cost <span className="font-bold text-primary-600">{bingo.price} 🪙</span>
+                            This will cost <span className="font-bold text-primary-600 inline-flex items-center gap-1">{bingo.price} <Coins size={14} className="text-yellow-500" /></span>
                         </p>
                         <div className="flex gap-3">
                             <button

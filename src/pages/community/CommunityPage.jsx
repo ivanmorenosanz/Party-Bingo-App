@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Sparkles, Star, TrendingUp } from 'lucide-react';
+import { Search, Sparkles, Star, TrendingUp, Coins } from 'lucide-react';
 import Header from '../../components/navigation/Header';
 import BottomNav from '../../components/navigation/BottomNav';
 import { COMMUNITY_BINGOS, BINGO_CATEGORIES, getBingosByType, searchBingos } from '../../data/bingos';
@@ -49,8 +49,8 @@ export default function CommunityPage() {
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
                             className={`px-4 py-2 rounded-full font-semibold text-sm transition-all ${activeTab === tab.id
-                                    ? 'bg-white text-primary-600'
-                                    : 'bg-white/20 text-white hover:bg-white/30'
+                                ? 'bg-white text-primary-600'
+                                : 'bg-white/20 text-white hover:bg-white/30'
                                 }`}
                         >
                             {tab.label}
@@ -67,8 +67,8 @@ export default function CommunityPage() {
                             key={cat.id}
                             onClick={() => setSelectedCategory(cat.id)}
                             className={`flex items-center gap-2 px-4 py-2 rounded-full whitespace-nowrap transition-all ${selectedCategory === cat.id
-                                    ? 'bg-primary-100 text-primary-700 font-semibold'
-                                    : 'bg-gray-100 text-gray-600'
+                                ? 'bg-primary-100 text-primary-700 font-semibold'
+                                : 'bg-gray-100 text-gray-600'
                                 }`}
                         >
                             <span>{cat.icon}</span>
@@ -101,8 +101,8 @@ export default function CommunityPage() {
                         >
                             <div className="flex items-start gap-4">
                                 <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-2xl ${bingo.type === 'serious'
-                                        ? 'bg-gradient-to-br from-primary-500 to-accent-500'
-                                        : 'bg-gradient-to-br from-yellow-400 to-orange-400'
+                                    ? 'bg-gradient-to-br from-primary-500 to-accent-500'
+                                    : 'bg-gradient-to-br from-yellow-400 to-orange-400'
                                     }`}>
                                     {bingo.type === 'serious' ? '🎯' : '🎉'}
                                 </div>
@@ -124,8 +124,8 @@ export default function CommunityPage() {
                                             {bingo.rating}
                                         </span>
                                         {bingo.price > 0 && (
-                                            <span className="text-sm font-semibold text-primary-600">
-                                                🪙 {bingo.price}
+                                            <span className="text-sm font-semibold text-primary-600 flex items-center gap-1">
+                                                <Coins size={14} className="text-yellow-500" /> {bingo.price}
                                             </span>
                                         )}
                                     </div>

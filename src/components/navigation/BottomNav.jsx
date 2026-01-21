@@ -1,11 +1,12 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Home, Users, Trophy, ShoppingBag, User } from 'lucide-react';
+import { Home, Users, Trophy, ShoppingBag, User, Newspaper } from 'lucide-react';
 
 const navItems = [
     { path: '/', icon: Home, label: 'Home' },
     { path: '/leagues', icon: Trophy, label: 'Leagues' },
     { path: '/community', icon: Users, label: 'Community' },
     { path: '/shop', icon: ShoppingBag, label: 'Shop' },
+    { path: '/news', icon: Newspaper, label: 'News' },
     { path: '/profile', icon: User, label: 'Profile' },
 ];
 
@@ -29,8 +30,8 @@ export default function BottomNav() {
                             key={path}
                             onClick={() => navigate(path)}
                             className={`flex flex-col items-center gap-1 py-2 px-3 rounded-xl transition-all duration-200 ${isActive
-                                    ? 'text-primary-600 bg-primary-50'
-                                    : 'text-gray-400 hover:text-gray-600'
+                                ? 'text-primary-600 bg-primary-50'
+                                : 'text-gray-400 hover:text-gray-600'
                                 }`}
                         >
                             <Icon size={22} strokeWidth={isActive ? 2.5 : 2} />

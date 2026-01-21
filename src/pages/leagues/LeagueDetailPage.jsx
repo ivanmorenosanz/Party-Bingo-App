@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { Trophy, Crown, Medal, Users, Calendar, Copy, Check, Play, X } from 'lucide-react';
+import { Trophy, Crown, Medal, Users, Calendar, Copy, Check, Play, X, Coins } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import Header from '../../components/navigation/Header';
 import { getLeagueById, getLeaderboard } from '../../data/leagues';
@@ -194,7 +194,7 @@ export default function LeagueDetailPage() {
                                 </div>
                                 <div className="text-right">
                                     <p className="font-bold text-primary-600">{member.totalScore || 0} pts</p>
-                                    <p className="text-xs text-gray-500">🪙 {member.coins || 0}</p>
+                                    <p className="text-xs text-gray-500 flex items-center gap-1"><Coins size={12} className="text-yellow-500" /> {member.coins || 0}</p>
                                 </div>
                             </div>
                         ))}
