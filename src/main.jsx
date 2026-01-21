@@ -5,6 +5,7 @@ import App from './App'
 import { AuthProvider } from './context/AuthContext'
 import { WalletProvider } from './context/WalletContext'
 import { GameProvider } from './context/GameContext'
+import { BingoProvider } from './context/BingoContext'
 import ErrorBoundary from './components/debug/ErrorBoundary'
 import './index.css'
 
@@ -15,7 +16,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
                 <AuthProvider>
                     <WalletProvider>
                         <GameProvider>
-                            <App />
+                            <BingoProvider>
+                                <App />
+                            </BingoProvider>
                         </GameProvider>
                     </WalletProvider>
                 </AuthProvider>

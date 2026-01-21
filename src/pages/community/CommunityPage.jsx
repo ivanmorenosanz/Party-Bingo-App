@@ -1,22 +1,82 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Sparkles, Star, TrendingUp, Coins, Banknote } from 'lucide-react';
+import { Search, Sparkles, Star, TrendingUp, Coins, Banknote, Timer } from 'lucide-react';
 import Header from '../../components/navigation/Header';
 import BottomNav from '../../components/navigation/BottomNav';
-import { COMMUNITY_BINGOS, BINGO_CATEGORIES, getBingosByType, searchBingos } from '../../data/bingos';
+import { BINGO_CATEGORIES } from '../../data/bingos';
+import { useBingo } from '../../context/BingoContext';
 
 export default function CommunityPage() {
     const navigate = useNavigate();
-    const [activeTab, setActiveTab] = useState('all'); // all, fun, serious
+    const { bingos: allBingos } = useBingo();
+    const [activeTab, setActiveTab] = useState('all'); // all, fun, coins, cash
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('all');
 
-    let bingos = getBingosByType(activeTab);
+    // Countdown Logic
+    const [timeLeft, setTimeLeft] = useState({});
 
+    const calculateTimeLeft = (endTime) => {
+        const difference = new Date(endTime) - new Date();
+        if (difference <= 0) return null;
+
+        const days = Math.floor(difference / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((difference / (1000 * 60 * 60)) % 24);
+        const minutes = Math.floor((difference / 1000 / 60) % 60);
+
+        if (days > 0) return `${days}d ${hours}h`;
+        if (hours > 0) return `${hours}h ${minutes}m`;
+        return `${minutes}m`;
+    };
+
+    useEffect(() => {
+        const timer = setInterval(() => {
+            const newTimeLeft = {};
+            allBingos.forEach(bingo => {
+                if (bingo.endsAt) {
+                    const left = calculateTimeLeft(bingo.endsAt);
+                    if (left) newTimeLeft[bingo.id] = left;
+                }
+            });
+            setTimeLeft(newTimeLeft);
+        }, 60000); // Update every minute
+
+        // Initial calculation
+        const initialTimeLeft = {};
+        allBingos.forEach(bingo => {
+            if (bingo.endsAt) {
+                const left = calculateTimeLeft(bingo.endsAt);
+                if (left) initialTimeLeft[bingo.id] = left;
+            }
+        });
+        setTimeLeft(initialTimeLeft);
+
+        return () => clearInterval(timer);
+    }, [allBingos]);
+
+    // Filter by Tab (Type)
+    let bingos = activeTab === 'all'
+        ? allBingos
+        : allBingos.filter(b => b.type === activeTab);
+
+    // Filter by Search
     if (searchQuery) {
-        bingos = searchBingos(searchQuery);
+        const q = searchQuery.toLowerCase();
+        if (q.startsWith('#')) {
+            // Tag specific search
+            const tagQuery = q.slice(1);
+            bingos = bingos.filter(b => b.tags.some(t => t.toLowerCase().includes(tagQuery)));
+        } else {
+            // General search
+            bingos = bingos.filter(b =>
+                b.title.toLowerCase().includes(q) ||
+                b.tags.some(t => t.toLowerCase().includes(q)) ||
+                b.creator.toLowerCase().includes(q)
+            );
+        }
     }
 
+    // Filter by Category Tag
     if (selectedCategory !== 'all') {
         bingos = bingos.filter(b => b.tags.includes(selectedCategory));
     }
@@ -37,6 +97,7 @@ export default function CommunityPage() {
                         className="input-glass pl-12"
                     />
                 </div>
+
 
                 {/* Tabs */}
                 <div className="flex gap-2 mt-4">
@@ -122,6 +183,12 @@ export default function CommunityPage() {
                                                 Real Money
                                             </span>
                                         )}
+                                        {bingo.endsAt && timeLeft[bingo.id] && (
+                                            <span className="flex items-center gap-1 bg-red-100 text-red-600 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border border-red-200">
+                                                <Timer size={10} />
+                                                {timeLeft[bingo.id]}
+                                            </span>
+                                        )}
                                         {bingo.type === 'coins' && (
                                             <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border border-yellow-200">
                                                 Coins
@@ -179,6 +246,6 @@ export default function CommunityPage() {
             </div>
 
             <BottomNav />
-        </div>
+        </div >
     );
 }

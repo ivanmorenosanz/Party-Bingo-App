@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Info, Coins, Eye } from 'lucide-react';
+import { Info, Coins, Eye, Banknote, Sparkles, Grid3X3, CheckSquare, Target } from 'lucide-react';
 import Header from '../../components/navigation/Header';
 import { useAuth } from '../../context/AuthContext';
+import { useBingo } from '../../context/BingoContext';
 
 const GRID_SIZES = [
     { value: 3, label: '3×3', squares: 9 },
@@ -10,28 +11,37 @@ const GRID_SIZES = [
     { value: 5, label: '5×5', squares: 25 },
 ];
 
+const GAME_MODES = [
+    { id: 'first_to_line', label: 'Classic', description: 'First to verify a line wins', icon: Grid3X3 },
+    { id: 'blackout', label: 'Blackout', description: 'Cover all squares to win', icon: CheckSquare },
+];
+
 export default function CreateBingoPage() {
     const navigate = useNavigate();
     const { addReward, user } = useAuth();
+    const { addBingo } = useBingo();
     const [title, setTitle] = useState('');
     const [gridSize, setGridSize] = useState(3);
-    const [bingoType, setBingoType] = useState('fun');
+    const [bingoType, setBingoType] = useState('fun'); // fun, coins, cash
+    const [gameMode, setGameMode] = useState('first_to_line');
     const [price, setPrice] = useState(0);
     const [bingoItems, setBingoItems] = useState(Array(9).fill(''));
     const [tags, setTags] = useState('');
+    const [endsAt, setEndsAt] = useState('');
 
     const handleGridSizeChange = (size) => {
         setGridSize(size);
-        // For serious bingos, we need more squares for the pool
-        const squareCount = bingoType === 'serious' ? size * size * 2 : size * size;
-        setBingoItems(Array(squareCount).fill(''));
+        const squareCount = size * size;
+        // Adjust existing items or create new array
+        const newItems = Array(squareCount).fill('');
+        bingoItems.forEach((item, i) => {
+            if (i < squareCount) newItems[i] = item;
+        });
+        setBingoItems(newItems);
     };
 
     const handleTypeChange = (type) => {
         setBingoType(type);
-        // Serious bingos need 2x squares for randomization pool
-        const squareCount = type === 'serious' ? gridSize * gridSize * 2 : gridSize * gridSize;
-        setBingoItems(Array(squareCount).fill(''));
         if (type === 'fun') setPrice(0);
     };
 
@@ -50,19 +60,37 @@ export default function CreateBingoPage() {
             alert('Please fill in all squares');
             return;
         }
+        if ((bingoType === 'coins' || bingoType === 'cash') && price <= 0) {
+            alert('Please set a valid entry fee');
+            return;
+        }
 
         // Give creator reward if first time
         if (!user?.rewards?.includes('creator')) {
             addReward('creator');
         }
 
-        // In production, would save to backend
-        alert('Bingo published successfully! 🎉');
+        const newBingo = {
+            title,
+            creator: user?.username || 'Anonymous',
+            creatorId: user?.id || 'anon',
+            type: bingoType,
+            price: bingoType === 'fun' ? 0 : price,
+            gameMode,
+            gridSize,
+            items: bingoItems,
+            tags: tags.split(',').map(t => t.trim()).filter(Boolean),
+            endsAt: endsAt || null, // Add deadline
+        };
+
+        addBingo(newBingo);
         navigate('/community');
     };
 
-    const requiredSquares = bingoType === 'serious' ? gridSize * gridSize * 2 : gridSize * gridSize;
-    const creatorEarnings = Math.floor(price * 0.7); // 70% to creator
+    const requiredSquares = gridSize * gridSize;
+    const creatorEarnings = bingoType === 'cash'
+        ? (price * 0.7).toFixed(2)
+        : Math.floor(price * 0.7);
 
     return (
         <div className="min-h-screen">
@@ -86,76 +114,96 @@ export default function CreateBingoPage() {
                 {/* Bingo Type */}
                 <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Bingo Type
+                        Game Category
                     </label>
-                    <div className="grid grid-cols-2 gap-3">
-                        <button
-                            onClick={() => handleTypeChange('fun')}
-                            className={`p-4 rounded-xl border-2 transition-all ${bingoType === 'fun'
-                                ? 'border-primary-500 bg-primary-50'
-                                : 'border-gray-200 bg-white'
-                                }`}
-                        >
-                            <span className="text-2xl mb-2 block">🎉</span>
-                            <h4 className="font-bold text-gray-800">Fun</h4>
-                            <p className="text-xs text-gray-500 mt-1">Free, same for everyone</p>
-                        </button>
-                        <button
-                            onClick={() => handleTypeChange('serious')}
-                            className={`p-4 rounded-xl border-2 transition-all ${bingoType === 'serious'
-                                ? 'border-primary-500 bg-primary-50'
-                                : 'border-gray-200 bg-white'
-                                }`}
-                        >
-                            <span className="text-2xl mb-2 block">🎯</span>
-                            <h4 className="font-bold text-gray-800">Competitive</h4>
-                            <p className="text-xs text-gray-500 mt-1">Paid, randomized</p>
-                        </button>
+                    <div className="grid grid-cols-3 gap-2">
+                        {[
+                            { id: 'fun', label: 'Fun', icon: Sparkles, color: 'text-blue-500', border: 'border-blue-500', bg: 'bg-blue-50' },
+                            { id: 'coins', label: 'Coins', icon: Coins, color: 'text-yellow-500', border: 'border-yellow-500', bg: 'bg-yellow-50' },
+                            { id: 'cash', label: 'Cash', icon: Banknote, color: 'text-green-500', border: 'border-green-500', bg: 'bg-green-50' }
+                        ].map(type => {
+                            const Icon = type.icon;
+                            const isSelected = bingoType === type.id;
+                            return (
+                                <button
+                                    key={type.id}
+                                    onClick={() => handleTypeChange(type.id)}
+                                    className={`p-3 rounded-xl border-2 transition-all flex flex-col items-center justify-center gap-1 ${isSelected ? `${type.border} ${type.bg}` : 'border-gray-100 bg-white hover:border-gray-200'
+                                        }`}
+                                >
+                                    <Icon className={type.color} size={24} />
+                                    <span className={`font-bold text-sm ${isSelected ? 'text-gray-800' : 'text-gray-500'}`}>
+                                        {type.label}
+                                    </span>
+                                </button>
+                            );
+                        })}
                     </div>
+                    <p className="text-xs text-gray-400 mt-2 text-center">
+                        {bingoType === 'fun' ? 'Free for everyone to play.' :
+                            bingoType === 'coins' ? 'Players pay Coins to enter.' :
+                                'Players pay Real Money to enter.'}
+                    </p>
                 </div>
 
-                {/* Serious Bingo Info & Price */}
-                {bingoType === 'serious' && (
-                    <>
-                        <div className="bg-blue-50 p-4 rounded-xl">
-                            <div className="flex items-start gap-2">
-                                <Info size={18} className="text-blue-600 mt-0.5 flex-shrink-0" />
-                                <div className="text-sm text-blue-700">
-                                    <p className="font-semibold mb-1">How Competitive Bingos Work:</p>
-                                    <ul className="list-disc ml-4 space-y-1">
-                                        <li>Create {requiredSquares} squares (2× the grid size)</li>
-                                        <li>Players pay coins to buy your bingo</li>
-                                        <li>Each player gets a unique, randomized board</li>
-                                        <li>You mark squares as completed for everyone</li>
-                                        <li>You earn 70% of each purchase!</li>
-                                    </ul>
-                                </div>
+                {/* Entry Fee (if not fun) */}
+                {bingoType !== 'fun' && (
+                    <div className="animate-fade-in-up">
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Entry Fee ({bingoType === 'cash' ? 'Real Money' : 'Coins'})
+                        </label>
+                        <div className="relative">
+                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                                {bingoType === 'cash' ? <span className="font-bold text-lg">$</span> : <Coins size={20} />}
                             </div>
+                            <input
+                                type="number"
+                                placeholder={bingoType === 'cash' ? "5.00" : "50"}
+                                value={price}
+                                onChange={(e) => setPrice(Math.max(0, parseFloat(e.target.value) || 0))}
+                                className="input-field pl-12"
+                                step={bingoType === 'cash' ? "0.50" : "10"}
+                            />
                         </div>
-
-                        <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                Price (in coins)
-                            </label>
-                            <div className="relative">
-                                <Coins className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                                <input
-                                    type="number"
-                                    placeholder="25"
-                                    value={price}
-                                    onChange={(e) => setPrice(Math.max(0, parseInt(e.target.value) || 0))}
-                                    min="0"
-                                    className="input-field pl-12"
-                                />
+                        {price > 0 && (
+                            <div className="mt-2 text-xs text-gray-500 flex items-center gap-1 bg-gray-50 p-2 rounded-lg">
+                                <Info size={12} />
+                                <span>You earn <strong>70%</strong>:
+                                    {bingoType === 'cash' ? ` $${creatorEarnings}` : ` ${creatorEarnings} coins`} per player
+                                </span>
                             </div>
-                            {price > 0 && (
-                                <p className="text-sm text-green-600 mt-2 flex items-center gap-1">
-                                    You'll earn <strong className="flex items-center gap-1">{creatorEarnings} <Coins size={14} className="text-yellow-500" /></strong> per purchase!
-                                </p>
-                            )}
-                        </div>
-                    </>
+                        )}
+                    </div>
                 )}
+
+                {/* Game Mode */}
+                <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Game Mode
+                    </label>
+                    <div className="grid grid-cols-2 gap-3">
+                        {GAME_MODES.map(mode => {
+                            const Icon = mode.icon;
+                            const isSelected = gameMode === mode.id;
+                            return (
+                                <button
+                                    key={mode.id}
+                                    onClick={() => setGameMode(mode.id)}
+                                    className={`p-3 rounded-xl border-2 transition-all text-left flex items-start gap-3 ${isSelected ? 'border-primary-500 bg-primary-50' : 'border-gray-100 bg-white'
+                                        }`}
+                                >
+                                    <div className={`p-2 rounded-lg ${isSelected ? 'bg-primary-100 text-primary-600' : 'bg-gray-100 text-gray-400'}`}>
+                                        <Icon size={20} />
+                                    </div>
+                                    <div>
+                                        <h4 className={`font-bold text-sm ${isSelected ? 'text-gray-900' : 'text-gray-600'}`}>{mode.label}</h4>
+                                        <p className="text-xs text-gray-400 leading-tight mt-0.5">{mode.description}</p>
+                                    </div>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
 
                 {/* Grid Size */}
                 <div>
@@ -174,7 +222,7 @@ export default function CreateBingoPage() {
                             >
                                 <span className="font-bold text-gray-800">{label}</span>
                                 <span className="text-xs text-gray-500 block">
-                                    {bingoType === 'serious' ? `${squares * 2} squares` : `${squares} squares`}
+                                    {squares} squares
                                 </span>
                             </button>
                         ))}
@@ -195,6 +243,19 @@ export default function CreateBingoPage() {
                     />
                 </div>
 
+                {/* Deadline */}
+                <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Closing Time (Optional)
+                    </label>
+                    <input
+                        type="datetime-local"
+                        className="input-field"
+                        onChange={(e) => setEndsAt(e.target.value)} // Need to add state
+                    />
+                    <p className="text-xs text-gray-400 mt-1">If set, the bingo will stop accepting entries after this time.</p>
+                </div>
+
                 {/* Bingo Squares */}
                 <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -203,13 +264,13 @@ export default function CreateBingoPage() {
                     <div className="space-y-2">
                         {bingoItems.map((item, index) => (
                             <div key={index} className="flex items-center gap-2">
-                                <span className="text-sm text-gray-400 w-6">#{index + 1}</span>
+                                <span className="text-xs font-mono text-gray-400 w-6">#{index + 1}</span>
                                 <input
                                     type="text"
                                     placeholder={`Square ${index + 1}`}
                                     value={item}
                                     onChange={(e) => handleItemChange(index, e.target.value)}
-                                    className="input-field flex-1"
+                                    className="input-field flex-1 text-sm py-2"
                                 />
                             </div>
                         ))}
@@ -218,7 +279,7 @@ export default function CreateBingoPage() {
             </div>
 
             {/* Fixed Bottom Actions */}
-            <div className="fixed bottom-0 left-0 right-0 p-6 bg-white border-t border-gray-100">
+            <div className="fixed bottom-0 left-0 right-0 p-6 bg-white border-t border-gray-100 z-10 safe-area-bottom">
                 <div className="flex gap-3">
                     <button
                         onClick={() => alert('Preview coming soon!')}

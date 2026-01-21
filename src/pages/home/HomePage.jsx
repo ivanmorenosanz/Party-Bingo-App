@@ -5,14 +5,15 @@ import { Plus, Users, Trophy, Sparkles, Play, Timer, Coins, X, TrendingUp } from
 import { useAuth } from '../../context/AuthContext';
 import { useWallet } from '../../context/WalletContext';
 import { useGame } from '../../context/GameContext';
+import { useBingo } from '../../context/BingoContext';
 import BottomNav from '../../components/navigation/BottomNav';
-import { COMMUNITY_BINGOS, getFeaturedBingos } from '../../data/bingos';
 import { getUserLeagues, getLeaderboard } from '../../data/leagues';
 
 export default function HomePage() {
     const navigate = useNavigate();
     const { user } = useAuth();
     const { coins, cash, transactions } = useWallet();
+    const { bingos } = useBingo();
     const { activeGames } = useGame();
     const [showBuyCoinsModal, setShowBuyCoinsModal] = useState(false);
 
@@ -35,7 +36,7 @@ export default function HomePage() {
     useEffect(() => {
         const timer = setInterval(() => {
             const newTimeLeft = {};
-            COMMUNITY_BINGOS.forEach(bingo => {
+            bingos.forEach(bingo => {
                 if (bingo.endsAt) {
                     const left = calculateTimeLeft(bingo.endsAt);
                     if (left) newTimeLeft[bingo.id] = left;
@@ -46,7 +47,7 @@ export default function HomePage() {
 
         // Initial calculation
         const initialTimeLeft = {};
-        COMMUNITY_BINGOS.forEach(bingo => {
+        bingos.forEach(bingo => {
             if (bingo.endsAt) {
                 const left = calculateTimeLeft(bingo.endsAt);
                 if (left) initialTimeLeft[bingo.id] = left;
@@ -55,10 +56,10 @@ export default function HomePage() {
         setTimeLeft(initialTimeLeft);
 
         return () => clearInterval(timer);
-    }, []);
+    }, [bingos]);
 
-    const featuredBingos = getFeaturedBingos().filter(b => !b.endsAt || calculateTimeLeft(b.endsAt)); // Hide expired
-    const trendingBingos = COMMUNITY_BINGOS.filter(b => !b.featured).slice(0, 5); // Show top 5 trending non-featured
+    const featuredBingos = bingos.filter(b => b.featured && (!b.endsAt || calculateTimeLeft(b.endsAt)));
+    const trendingBingos = bingos.filter(b => !b.featured).slice(0, 5); // Show top 5 trending non-featured
     const myActiveGames = activeGames.filter(g => g.status !== 'finished');
 
     // Get user's leagues
@@ -71,50 +72,51 @@ export default function HomePage() {
     return (
         <div className="min-h-screen pb-24">
             {/* Header */}
-            <div className="gradient-header p-6 rounded-b-3xl shadow-lg">
-                <div className="flex items-center justify-between mb-6">
+            <div className="gradient-header p-4 pb-2 rounded-b-3xl shadow-lg">
+                <div className="flex items-center justify-between mb-4">
                     <div>
-                        <h1 className="text-2xl font-bold text-white">Hey, {user?.username}! 👋</h1>
-                        <p className="text-white/80">Ready to predict?</p>
+                        <h1 className="text-xl font-bold text-white">Hey, {user?.username}! 👋</h1>
+                        <p className="text-white/80 text-xs">Ready to predict?</p>
                     </div>
                     <div className="flex items-center gap-1">
                         {/* Cash Badge */}
-                        <div className="bg-white/20 backdrop-blur px-3 py-2 rounded-full flex items-center gap-2 mr-2">
-                            <span className="bg-green-500 rounded-full w-5 h-5 flex items-center justify-center text-white font-bold text-xs">$</span>
-                            <span className="text-white font-bold">${(cash || 0).toFixed(2)}</span>
+                        <div className="bg-white/20 backdrop-blur px-2 py-1.5 rounded-full flex items-center gap-1.5 mr-1">
+                            <span className="bg-green-500 rounded-full w-4 h-4 flex items-center justify-center text-white font-bold text-[10px]">$</span>
+                            <span className="text-white font-bold text-sm">${(cash || 0).toFixed(2)}</span>
                         </div>
 
                         {/* Coins Badge */}
-                        <div className="bg-white/20 backdrop-blur px-4 py-2 rounded-l-full flex items-center gap-2">
-                            <Coins className="text-yellow-300" size={18} />
-                            <span className="text-white font-bold">{coins}</span>
+                        <div className="bg-white/20 backdrop-blur px-3 py-1.5 rounded-l-full flex items-center gap-1.5">
+                            <Coins className="text-yellow-300" size={14} />
+                            <span className="text-white font-bold text-sm">{coins}</span>
                         </div>
                         <button
                             onClick={() => setShowBuyCoinsModal(true)}
-                            className="bg-yellow-400 hover:bg-yellow-500 p-2 rounded-r-full transition-colors"
+                            className="bg-yellow-400 hover:bg-yellow-500 p-1.5 rounded-r-full transition-colors"
                         >
-                            <Plus size={18} className="text-yellow-900" />
+                            <Plus size={14} className="text-yellow-900" />
                         </button>
                     </div>
                 </div>
 
                 {/* Quick Stats */}
-                <div className="space-y-4 mb-6">
-                    {/* Top Row: Compact Wins & Streak */}
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="bg-white/20 backdrop-blur rounded-xl p-2 text-center">
-                            <p className="text-xl font-bold text-white">{user?.stats?.gamesWon || 0}</p>
-                            <p className="text-white/80 text-[10px] font-medium uppercase tracking-wider">Wins</p>
-                        </div>
-                        <div className="bg-white/20 backdrop-blur rounded-xl p-2 text-center">
-                            <p className="text-xl font-bold text-white">{user?.stats?.currentStreak || 0}</p>
-                            <p className="text-white/80 text-[10px] font-medium uppercase tracking-wider">Streak 🔥</p>
-                        </div>
+                <div className="flex gap-2 mb-2">
+                    {/* Compact Wins */}
+                    <div className="flex-1 bg-white/20 backdrop-blur rounded-xl p-1.5 flex items-center justify-between px-3">
+                        <span className="text-white/80 text-[10px] font-medium uppercase tracking-wider">Wins</span>
+                        <span className="text-lg font-bold text-white leading-none">{user?.stats?.gamesWon || 0}</span>
                     </div>
 
-                    {/* Bottom Row Removed (Moved to Profile) */}
+                    {/* Compact Streak */}
+                    <div className="flex-1 bg-white/20 backdrop-blur rounded-xl p-1.5 flex items-center justify-between px-3">
+                        <span className="text-white/80 text-[10px] font-medium uppercase tracking-wider">Streak 🔥</span>
+                        <span className="text-lg font-bold text-white leading-none">{user?.stats?.currentStreak || 0}</span>
+                    </div>
                 </div>
+
+                {/* Bottom Row Removed (Moved to Profile) */}
             </div>
+
 
             {/* Content */}
             <div className="p-6 space-y-6">
@@ -322,66 +324,57 @@ export default function HomePage() {
                 </div>
 
                 {/* Create Your Own */}
-                <button
-                    onClick={() => navigate('/create-bingo')}
-                    className="w-full bg-gradient-to-r from-primary-500 to-accent-500 p-6 rounded-2xl shadow-lg text-white flex items-center gap-4"
-                >
-                    <div className="bg-white/20 w-12 h-12 rounded-xl flex items-center justify-center">
-                        <Sparkles size={24} />
-                    </div>
-                    <div className="text-left flex-1">
-                        <h3 className="font-bold text-lg">Create Your Own Bingo</h3>
-                        <p className="text-white/80 text-sm">Share with the community & earn coins!</p>
-                    </div>
-                </button>
+
             </div>
 
             <BottomNav />
 
             {/* Buy Coins Modal (Coming Soon) */}
-            {showBuyCoinsModal && (
-                <div
-                    className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6"
-                    onClick={() => setShowBuyCoinsModal(false)}
-                >
+            {
+                showBuyCoinsModal && (
                     <div
-                        className="bg-white rounded-2xl p-6 w-full max-w-sm animate-scale-in"
-                        onClick={e => e.stopPropagation()}
+                        className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6"
+                        onClick={() => setShowBuyCoinsModal(false)}
                     >
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-xl font-bold text-gray-800">Get More Coins</h3>
+                        <div
+                            className="bg-white rounded-2xl p-6 w-full max-w-sm animate-scale-in"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-xl font-bold text-gray-800">Get More Coins</h3>
+                                <button
+                                    onClick={() => setShowBuyCoinsModal(false)}
+                                    className="text-gray-400 hover:text-gray-600"
+                                >
+                                    <X size={24} />
+                                </button>
+                            </div>
+
+                            <div className="text-center py-8">
+                                <div className="bg-yellow-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <Coins className="text-yellow-500" size={40} />
+                                </div>
+                                <h4 className="text-lg font-bold text-gray-800 mb-2">Coming Soon!</h4>
+                                <p className="text-gray-600 mb-4">
+                                    Coin purchases will be available in a future update. For now, earn coins by playing games and completing achievements!
+                                </p>
+                                <div className="bg-primary-50 rounded-xl p-4">
+                                    <p className="text-sm text-primary-700 font-medium">
+                                        💡 Tip: Win competitive bingos to earn more coins!
+                                    </p>
+                                </div>
+                            </div>
+
                             <button
                                 onClick={() => setShowBuyCoinsModal(false)}
-                                className="text-gray-400 hover:text-gray-600"
+                                className="w-full btn-primary"
                             >
-                                <X size={24} />
+                                Got it!
                             </button>
                         </div>
-
-                        <div className="text-center py-8">
-                            <div className="bg-yellow-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <Coins className="text-yellow-500" size={40} />
-                            </div>
-                            <h4 className="text-lg font-bold text-gray-800 mb-2">Coming Soon!</h4>
-                            <p className="text-gray-600 mb-4">
-                                Coin purchases will be available in a future update. For now, earn coins by playing games and completing achievements!
-                            </p>
-                            <div className="bg-primary-50 rounded-xl p-4">
-                                <p className="text-sm text-primary-700 font-medium">
-                                    💡 Tip: Win competitive bingos to earn more coins!
-                                </p>
-                            </div>
-                        </div>
-
-                        <button
-                            onClick={() => setShowBuyCoinsModal(false)}
-                            className="w-full btn-primary"
-                        >
-                            Got it!
-                        </button>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 }

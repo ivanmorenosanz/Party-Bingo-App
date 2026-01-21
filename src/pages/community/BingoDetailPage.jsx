@@ -1,10 +1,10 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { Star, TrendingUp, Users, Grid, Play, Lock, Coins } from 'lucide-react';
+import { Star, TrendingUp, Users, Grid, Play, Lock, Coins, Timer } from 'lucide-react';
 import Header from '../../components/navigation/Header';
-import { getBingoById } from '../../data/bingos';
 import { useWallet } from '../../context/WalletContext';
 import { useGame } from '../../context/GameContext';
 import { useAuth } from '../../context/AuthContext';
+import { useBingo } from '../../context/BingoContext';
 import { useState, useEffect } from 'react';
 
 export default function BingoDetailPage() {
@@ -13,6 +13,7 @@ export default function BingoDetailPage() {
     const { coins, spendCoins, canAfford } = useWallet();
     const { createRoom, activeGames, currentGameCode } = useGame();
     const { isGuest } = useAuth();
+    const { getBingoById } = useBingo();
 
     const [showPurchaseModal, setShowPurchaseModal] = useState(false);
     const [showGuestModal, setShowGuestModal] = useState(false);
@@ -36,6 +37,35 @@ export default function BingoDetailPage() {
             // navigate('/community'); // Commenting out auto-redirect for debugging
         }
     }, [bingo, navigate]);
+
+    // Countdown Logic
+    const [timeLeft, setTimeLeft] = useState(null);
+
+    const calculateTimeLeft = (endTime) => {
+        const difference = new Date(endTime) - new Date();
+        if (difference <= 0) return null;
+
+        const days = Math.floor(difference / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((difference / (1000 * 60 * 60)) % 24);
+        const minutes = Math.floor((difference / 1000 / 60) % 60);
+
+        if (days > 0) return `${days}d ${hours}h`;
+        if (hours > 0) return `${hours}h ${minutes}m`;
+        return `${minutes}m`;
+    };
+
+    useEffect(() => {
+        if (!bingo?.endsAt) return;
+
+        const updateTimer = () => {
+            setTimeLeft(calculateTimeLeft(bingo.endsAt));
+        };
+
+        updateTimer();
+        const timer = setInterval(updateTimer, 60000);
+
+        return () => clearInterval(timer);
+    }, [bingo]);
 
     if (!bingo) {
         return (
@@ -130,6 +160,15 @@ export default function BingoDetailPage() {
                             <p className="text-2xl font-bold">{bingo.gridSize}×{bingo.gridSize}</p>
                             <p className="text-xs text-white/80">grid</p>
                         </div>
+                        {timeLeft && (
+                            <div className="text-center animate-pulse">
+                                <p className="text-2xl font-bold flex items-center gap-1 justify-center text-red-100">
+                                    <Timer size={20} />
+                                    {timeLeft}
+                                </p>
+                                <p className="text-xs text-white/80">ends in</p>
+                            </div>
+                        )}
                     </div>
                 </div>
 
