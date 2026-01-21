@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Users, Trophy, Sparkles, Play, Timer, Coins, X, TrendingUp } from 'lucide-react';
-import PnLChart from '../../components/charts/PnLChart';
+
 import { useAuth } from '../../context/AuthContext';
 import { useWallet } from '../../context/WalletContext';
 import { useGame } from '../../context/GameContext';
@@ -12,7 +12,7 @@ import { getUserLeagues, getLeaderboard } from '../../data/leagues';
 export default function HomePage() {
     const navigate = useNavigate();
     const { user } = useAuth();
-    const { coins, transactions } = useWallet();
+    const { coins, cash, transactions } = useWallet();
     const { activeGames } = useGame();
     const [showBuyCoinsModal, setShowBuyCoinsModal] = useState(false);
 
@@ -78,6 +78,13 @@ export default function HomePage() {
                         <p className="text-white/80">Ready to predict?</p>
                     </div>
                     <div className="flex items-center gap-1">
+                        {/* Cash Badge */}
+                        <div className="bg-white/20 backdrop-blur px-3 py-2 rounded-full flex items-center gap-2 mr-2">
+                            <span className="bg-green-500 rounded-full w-5 h-5 flex items-center justify-center text-white font-bold text-xs">$</span>
+                            <span className="text-white font-bold">${(cash || 0).toFixed(2)}</span>
+                        </div>
+
+                        {/* Coins Badge */}
                         <div className="bg-white/20 backdrop-blur px-4 py-2 rounded-l-full flex items-center gap-2">
                             <Coins className="text-yellow-300" size={18} />
                             <span className="text-white font-bold">{coins}</span>
@@ -105,13 +112,7 @@ export default function HomePage() {
                         </div>
                     </div>
 
-                    {/* Bottom Row: Full Width PnL */}
-                    <div className="bg-white/20 backdrop-blur rounded-2xl p-4 min-h-[160px] flex flex-col items-center justify-center relative overflow-hidden group">
-                        {/* PnL Chart fills container */}
-                        <div className="w-full h-full relative z-10 flex flex-col items-center justify-center">
-                            <PnLChart transactions={transactions} width={300} height={80} />
-                        </div>
-                    </div>
+                    {/* Bottom Row Removed (Moved to Profile) */}
                 </div>
             </div>
 

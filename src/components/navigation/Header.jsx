@@ -5,7 +5,7 @@ import { useWallet } from '../../context/WalletContext';
 
 export default function Header({ title, showBack = false, showCoins = false, backPath, children }) {
     const navigate = useNavigate();
-    const { coins } = useWallet();
+    const { coins, cash } = useWallet();
     const [showBuyCoinsModal, setShowBuyCoinsModal] = useState(false);
 
     const handleBack = () => {
@@ -35,6 +35,13 @@ export default function Header({ title, showBack = false, showCoins = false, bac
                     <div className="flex items-center gap-3">
                         {showCoins && (
                             <div className="flex items-center gap-1">
+                                {/* Cash Badge */}
+                                <div className="bg-white/20 backdrop-blur px-3 py-2 rounded-full flex items-center gap-2 mr-2">
+                                    <span className="bg-green-500 rounded-full w-5 h-5 flex items-center justify-center text-white font-bold text-xs">$</span>
+                                    <span className="text-white font-bold">${cash.toFixed(2)}</span>
+                                </div>
+
+                                {/* Coins Badge */}
                                 <div className="bg-white/20 backdrop-blur px-4 py-2 rounded-l-full flex items-center gap-2">
                                     <Coins className="text-yellow-300" size={18} />
                                     <span className="text-white font-bold">{coins}</span>

@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useWallet } from '../../context/WalletContext';
 import { getCosmeticById } from '../../data/cosmetics';
 import PixelAvatar from '../../components/avatar/PixelAvatar';
+import PnLChart from '../../components/charts/PnLChart';
 
 export default function ProfilePage() {
     const navigate = useNavigate();
@@ -132,6 +133,14 @@ export default function ProfilePage() {
                             ))}
                         </div>
                     )}
+                </div>
+
+                {/* Performance Chart */}
+                <div className="card overflow-hidden">
+                    <p className="text-sm text-gray-500 mb-2 font-semibold">Performance History</p>
+                    <div className="bg-gray-900 rounded-xl p-2 flex flex-col items-center justify-center relative min-h-[100px]">
+                        <PnLChart transactions={transactions} width={300} height={60} />
+                    </div>
                 </div>
 
                 {/* Menu Items */}

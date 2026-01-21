@@ -9,6 +9,7 @@ const STARTING_COINS = 100;
 export function WalletProvider({ children }) {
     const { user } = useAuth();
     const [coins, setCoins] = useState(STARTING_COINS);
+    const [cash, setCash] = useState(10.00); // Real money balance
     const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(false);
 
@@ -20,12 +21,15 @@ export function WalletProvider({ children }) {
                 try {
                     const data = await walletAPI.getWallet(user.id);
                     setCoins(data.coins);
+                    setCash(data.cash || 0.00);
                     setTransactions(data.transactions || []);
                 } catch (error) {
                     // Fallback to localStorage
                     const savedCoins = localStorage.getItem('bingo_coins');
+                    const savedCash = localStorage.getItem('bingo_cash');
                     const savedTransactions = localStorage.getItem('bingo_transactions');
                     setCoins(savedCoins ? parseInt(savedCoins, 10) : STARTING_COINS);
+                    setCash(savedCash ? parseFloat(savedCash) : 0.00);
                     setTransactions(savedTransactions ? JSON.parse(savedTransactions) : []);
                 }
                 setLoading(false);
@@ -40,15 +44,20 @@ export function WalletProvider({ children }) {
     }, [coins]);
 
     useEffect(() => {
+        localStorage.setItem('bingo_cash', cash.toString());
+    }, [cash]);
+
+    useEffect(() => {
         localStorage.setItem('bingo_transactions', JSON.stringify(transactions));
     }, [transactions]);
 
-    const addTransaction = (type, amount, description) => {
+    const addTransaction = (type, amount, description, currency = 'coins') => {
         const transaction = {
             id: Date.now().toString(),
-            type,
+            type, // 'earn' or 'spend'
             amount,
             description,
+            currency, // 'coins' or 'cash'
             timestamp: new Date().toISOString(),
         };
         setTransactions(prev => [transaction, ...prev].slice(0, 100));
@@ -57,7 +66,7 @@ export function WalletProvider({ children }) {
     const earnCoins = async (amount, reason = 'Reward') => {
         // Optimistic update
         setCoins(prev => prev + amount);
-        addTransaction('earn', amount, reason);
+        addTransaction('earn', amount, reason, 'coins');
 
         // Sync to server
         if (user?.id) {
@@ -78,7 +87,7 @@ export function WalletProvider({ children }) {
 
         // Optimistic update
         setCoins(prev => prev - amount);
-        addTransaction('spend', amount, reason);
+        addTransaction('spend', amount, reason, 'coins');
 
         // Sync to server
         if (user?.id) {
@@ -97,22 +106,41 @@ export function WalletProvider({ children }) {
         return true;
     };
 
-    const canAfford = (amount) => coins >= amount;
+    const earnCash = async (amount, reason = 'Deposit') => {
+        setCash(prev => prev + amount);
+        addTransaction('earn', amount, reason, 'cash');
+        // Server sync would go here
+        return true;
+    };
+
+    const spendCash = async (amount, reason = 'Withdrawal') => {
+        if (cash < amount) return false;
+        setCash(prev => prev - amount);
+        addTransaction('spend', amount, reason, 'cash');
+        return true;
+    };
+
+    const canAfford = (amount) => coins >= amount; // Defaults to checking coins
 
     const resetWallet = () => {
         setCoins(STARTING_COINS);
+        setCash(0.00);
         setTransactions([]);
         localStorage.removeItem('bingo_coins');
+        localStorage.removeItem('bingo_cash');
         localStorage.removeItem('bingo_transactions');
     };
 
     return (
         <WalletContext.Provider value={{
             coins,
+            cash,
             transactions,
             loading,
             earnCoins,
             spendCoins,
+            earnCash,
+            spendCash,
             canAfford,
             resetWallet,
         }}>

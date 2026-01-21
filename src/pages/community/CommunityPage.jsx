@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Sparkles, Star, TrendingUp, Coins } from 'lucide-react';
+import { Search, Sparkles, Star, TrendingUp, Coins, Banknote } from 'lucide-react';
 import Header from '../../components/navigation/Header';
 import BottomNav from '../../components/navigation/BottomNav';
 import { COMMUNITY_BINGOS, BINGO_CATEGORIES, getBingosByType, searchBingos } from '../../data/bingos';
@@ -41,21 +41,26 @@ export default function CommunityPage() {
                 {/* Tabs */}
                 <div className="flex gap-2 mt-4">
                     {[
-                        { id: 'all', label: 'All' },
-                        { id: 'fun', label: '🎉 Fun' },
-                        { id: 'serious', label: '🎯 Competitive' },
-                    ].map(tab => (
-                        <button
-                            key={tab.id}
-                            onClick={() => setActiveTab(tab.id)}
-                            className={`px-4 py-2 rounded-full font-semibold text-sm transition-all ${activeTab === tab.id
-                                ? 'bg-white text-primary-600'
-                                : 'bg-white/20 text-white hover:bg-white/30'
-                                }`}
-                        >
-                            {tab.label}
-                        </button>
-                    ))}
+                        { id: 'all', label: 'All', icon: null },
+                        { id: 'fun', label: 'Fun (Free)', icon: Sparkles },
+                        { id: 'coins', label: 'In-Game Money', icon: Coins },
+                        { id: 'cash', label: 'Real Money', icon: Banknote }, // Need to import Banknote
+                    ].map(tab => {
+                        const Icon = tab.icon;
+                        return (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-full font-semibold text-sm transition-all whitespace-nowrap ${activeTab === tab.id
+                                    ? 'bg-white text-primary-600 shadow-sm'
+                                    : 'bg-white/20 text-white hover:bg-white/30'
+                                    }`}
+                            >
+                                {Icon && <Icon size={16} />}
+                                {tab.label}
+                            </button>
+                        );
+                    })}
                 </div>
             </div>
 
@@ -97,37 +102,66 @@ export default function CommunityPage() {
                         <button
                             key={bingo.id}
                             onClick={() => navigate(`/community/${bingo.id}`)}
-                            className="w-full card text-left"
+                            className="w-full card text-left transform transition-transform hover:scale-[1.01]"
                         >
                             <div className="flex items-start gap-4">
-                                <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-2xl ${bingo.type === 'serious'
-                                    ? 'bg-gradient-to-br from-primary-500 to-accent-500'
-                                    : 'bg-gradient-to-br from-yellow-400 to-orange-400'
+                                {/* Icon / Type Identifier */}
+                                <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-2xl shadow-inner ${bingo.type === 'cash' ? 'bg-gradient-to-br from-green-400 to-emerald-600' :
+                                    bingo.type === 'coins' ? 'bg-gradient-to-br from-yellow-300 to-amber-500' :
+                                        'bg-gradient-to-br from-primary-400 to-purple-500'
                                     }`}>
-                                    {bingo.type === 'serious' ? '🎯' : '🎉'}
+                                    {bingo.type === 'cash' ? '💵' : bingo.type === 'coins' ? '🪙' : '🎉'}
                                 </div>
+
                                 <div className="flex-1">
                                     <div className="flex items-center gap-2 mb-1">
-                                        <h3 className="font-bold text-gray-800">{bingo.title}</h3>
-                                        {bingo.type === 'serious' && (
-                                            <span className="badge-primary text-xs">Competitive</span>
+                                        <h3 className="font-bold text-gray-800 line-clamp-1">{bingo.title}</h3>
+                                        {/* Type Badges */}
+                                        {bingo.type === 'cash' && (
+                                            <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border border-green-200">
+                                                Real Money
+                                            </span>
+                                        )}
+                                        {bingo.type === 'coins' && (
+                                            <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border border-yellow-200">
+                                                Coins
+                                            </span>
+                                        )}
+                                        {bingo.type === 'fun' && (
+                                            <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border border-blue-200">
+                                                Free
+                                            </span>
                                         )}
                                     </div>
+
                                     <p className="text-sm text-gray-500">by {bingo.creator}</p>
+
                                     <div className="flex items-center gap-4 mt-2">
                                         <span className="flex items-center gap-1 text-sm text-gray-500">
                                             <TrendingUp size={14} />
-                                            {bingo.plays} plays
+                                            {bingo.plays}
                                         </span>
                                         <span className="flex items-center gap-1 text-sm text-yellow-500">
                                             <Star size={14} fill="currentColor" />
                                             {bingo.rating}
                                         </span>
-                                        {bingo.price > 0 && (
-                                            <span className="text-sm font-semibold text-primary-600 flex items-center gap-1">
-                                                <Coins size={14} className="text-yellow-500" /> {bingo.price}
-                                            </span>
-                                        )}
+
+                                        {/* Price Display */}
+                                        <div className="flex-1 text-right">
+                                            {bingo.type === 'cash' ? (
+                                                <span className="text-sm font-bold text-green-600 flex items-center justify-end gap-1">
+                                                    💵 ${bingo.price.toFixed(2)}
+                                                </span>
+                                            ) : bingo.type === 'coins' ? (
+                                                <span className="text-sm font-bold text-yellow-600 flex items-center justify-end gap-1">
+                                                    🪙 {bingo.price}
+                                                </span>
+                                            ) : (
+                                                <span className="text-sm font-bold text-blue-500">
+                                                    Free
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
