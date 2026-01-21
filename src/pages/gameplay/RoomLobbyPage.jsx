@@ -1,42 +1,37 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Users, Copy, Check, Share2 } from 'lucide-react';
+import { Users, Copy, Check, Share2, Sparkles, Send, CheckCircle } from 'lucide-react';
 import Header from '../../components/navigation/Header';
 import { useGame } from '../../context/GameContext';
+import { useAuth } from '../../context/AuthContext';
 
 export default function RoomLobbyPage() {
     const navigate = useNavigate();
     const { code } = useParams();
-    const { currentRoom, startGame, leaveRoom, setPlayers } = useGame();
+    const { activeGames, startGame, leaveRoom, updateGame } = useGame();
+    const { user } = useAuth();
     const [copied, setCopied] = useState(false);
 
-    // Mock players joining
+    const currentRoom = activeGames.find(g => g.code === code);
+    const players = currentRoom?.players || [];
+
+    // Crowd Shuffle state
+    const [mySquares, setMySquares] = useState([]);
+    const [currentSquareInput, setCurrentSquareInput] = useState('');
+    const [hasSubmitted, setHasSubmitted] = useState(false);
+    const [allContributions, setAllContributions] = useState([]);
+
+    const isCrowdShuffle = currentRoom?.gameMode === 'crowd_shuffle';
+    const squaresPerPlayer = currentRoom?.squaresPerPlayer || 3;
+
+    // Initialize with just the current user (no mock players)
     useEffect(() => {
-        const mockPlayers = [
-            { id: 'host', name: 'You', isHost: currentRoom?.isHost, markedCount: 0 },
-            { id: '2', name: 'Sarah', isHost: false, markedCount: 0 },
-            { id: '3', name: 'Mike', isHost: false, markedCount: 0 },
-            { id: '4', name: 'Alex', isHost: false, markedCount: 0 },
-        ];
-
-        // Simulate players joining one by one
-        const timer1 = setTimeout(() => setPlayers(mockPlayers.slice(0, 2)), 500);
-        const timer2 = setTimeout(() => setPlayers(mockPlayers.slice(0, 3)), 1500);
-        const timer3 = setTimeout(() => setPlayers(mockPlayers), 2500);
-
-        return () => {
-            clearTimeout(timer1);
-            clearTimeout(timer2);
-            clearTimeout(timer3);
-        };
-    }, [setPlayers, currentRoom?.isHost]);
-
-    const players = [
-        { id: 'host', name: 'You', isHost: currentRoom?.isHost },
-        { id: '2', name: 'Sarah', isHost: false },
-        { id: '3', name: 'Mike', isHost: false },
-        { id: '4', name: 'Alex', isHost: false },
-    ];
+        if (currentRoom && (!currentRoom.players || currentRoom.players.length === 0)) {
+            updateGame(code, {
+                players: [{ id: user?.id || 'host', name: user?.username || 'You', isHost: currentRoom.isHost, markedCount: 0, hasSubmitted: false }]
+            });
+        }
+    }, [code, currentRoom?.id, user]); // reduced deps to avoid infinite loop
 
     const copyRoomCode = async () => {
         try {
@@ -48,13 +43,94 @@ export default function RoomLobbyPage() {
         }
     };
 
+    const handleAddSquare = () => {
+        if (currentSquareInput.trim() && mySquares.length < squaresPerPlayer) {
+            setMySquares([...mySquares, currentSquareInput.trim()]);
+            setCurrentSquareInput('');
+        }
+    };
+
+    const handleRemoveSquare = (index) => {
+        setMySquares(mySquares.filter((_, i) => i !== index));
+    };
+
+    const handleSubmitSquares = () => {
+        if (mySquares.length === squaresPerPlayer) {
+            setHasSubmitted(true);
+            setAllContributions([{ playerId: user?.id || 'host', squares: mySquares }]);
+            // Update player status
+            updateGame(code, {
+                players: players.map(p =>
+                    p.id === (user?.id || 'host') ? { ...p, hasSubmitted: true } : p
+                )
+            });
+        }
+    };
+
     const handleStartGame = () => {
-        startGame();
+        if (isCrowdShuffle) {
+            // Generate random boards for each player
+            const allSquares = allContributions.flatMap(c => c.squares);
+            const gridSize = currentRoom?.gridSize || 3;
+            const totalSquares = gridSize * gridSize;
+
+            // Create shuffled board for this player
+            // Each player gets a random selection, but same squares can appear on different boards
+            const shuffledItems = [];
+            const availableSquares = [...allSquares];
+
+            for (let i = 0; i < totalSquares; i++) {
+                if (availableSquares.length === 0) {
+                    // Reset pool if we run out
+                    availableSquares.push(...allSquares);
+                }
+                const randomIndex = Math.floor(Math.random() * availableSquares.length);
+                const square = availableSquares[randomIndex];
+
+                // Only add if not already in our board
+                if (!shuffledItems.includes(square)) {
+                    shuffledItems.push(square);
+                    availableSquares.splice(randomIndex, 1);
+                } else {
+                    // Conflict found
+                    availableSquares.splice(randomIndex, 1);
+
+                    if (availableSquares.length === 0) {
+                        // Try to find any unused squares
+                        const unused = allSquares.filter(s => !shuffledItems.includes(s));
+                        availableSquares.push(...unused);
+
+                        if (availableSquares.length === 0) {
+                            // Not enough unique squares, fill with duplicates
+                            shuffledItems.push(allSquares[Math.floor(Math.random() * allSquares.length)]);
+                            // We successfully added an item, so we proceed to next index (no i--)
+                        } else {
+                            // We found unused squares, retry this index
+                            i--;
+                        }
+                    } else {
+                        // We still have candidates in availableSquares, retry this index
+                        i--;
+                    }
+                }
+            }
+
+            // Update room with generated items
+            updateGame(code, { items: shuffledItems.slice(0, totalSquares) });
+        }
+
+        startGame(code);
         navigate(`/play/${code}`);
     };
 
     const handleLeave = () => {
-        leaveRoom();
+        // Just navigate away, don't destroy game so it can be resumed
+        navigate('/');
+    };
+
+    const handleQuit = () => {
+        // Use this if we want to actually leave/destroy the game
+        leaveRoom(code);
         navigate('/');
     };
 
@@ -62,6 +138,9 @@ export default function RoomLobbyPage() {
         navigate('/');
         return null;
     }
+
+    const allPlayersSubmitted = players.every(p => p.hasSubmitted);
+    const canStartGame = isCrowdShuffle ? (allPlayersSubmitted && currentRoom?.isHost) : currentRoom?.isHost;
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -101,7 +180,7 @@ export default function RoomLobbyPage() {
                 {/* Game Info */}
                 <div className="card">
                     <h3 className="font-bold text-gray-800 mb-3">Game Settings</h3>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-3 gap-4">
                         <div className="bg-gray-50 p-3 rounded-lg">
                             <p className="text-xs text-gray-500">Grid Size</p>
                             <p className="font-bold text-gray-800">{currentRoom?.gridSize}×{currentRoom?.gridSize}</p>
@@ -110,8 +189,109 @@ export default function RoomLobbyPage() {
                             <p className="text-xs text-gray-500">Type</p>
                             <p className="font-bold text-gray-800 capitalize">{currentRoom?.type}</p>
                         </div>
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                            <p className="text-xs text-gray-500">Mode</p>
+                            <p className="font-bold text-gray-800 capitalize flex items-center gap-1">
+                                {isCrowdShuffle ? (
+                                    <>
+                                        <Sparkles size={14} className="text-pink-500" />
+                                        <span className="text-sm">Shuffle</span>
+                                    </>
+                                ) : 'Classic'}
+                            </p>
+                        </div>
                     </div>
                 </div>
+
+                {/* Crowd Shuffle: Square Submission */}
+                {isCrowdShuffle && !hasSubmitted && (
+                    <div className="card border-2 border-pink-200 bg-gradient-to-br from-pink-50 to-purple-50">
+                        <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                            <Sparkles className="text-pink-500" size={20} />
+                            Add Your Squares ({mySquares.length}/{squaresPerPlayer})
+                        </h3>
+
+                        <div className="space-y-3">
+                            {/* Added squares */}
+                            {mySquares.map((square, index) => (
+                                <div key={index} className="flex items-center gap-2 bg-white p-3 rounded-lg">
+                                    <span className="flex-1 text-gray-800">{square}</span>
+                                    <button
+                                        onClick={() => handleRemoveSquare(index)}
+                                        className="text-red-500 hover:text-red-700 text-sm font-semibold"
+                                    >
+                                        Remove
+                                    </button>
+                                </div>
+                            ))}
+
+                            {/* Input for new square */}
+                            {mySquares.length < squaresPerPlayer && (
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        placeholder="Enter a bingo square..."
+                                        value={currentSquareInput}
+                                        onChange={(e) => setCurrentSquareInput(e.target.value)}
+                                        onKeyPress={(e) => e.key === 'Enter' && handleAddSquare()}
+                                        className="flex-1 input-field"
+                                    />
+                                    <button
+                                        onClick={handleAddSquare}
+                                        disabled={!currentSquareInput.trim()}
+                                        className="btn-primary px-4"
+                                    >
+                                        <Send size={18} />
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* Submit button */}
+                            {mySquares.length === squaresPerPlayer && (
+                                <button
+                                    onClick={handleSubmitSquares}
+                                    className="w-full btn-primary flex items-center justify-center gap-2"
+                                >
+                                    <CheckCircle size={18} />
+                                    Submit My Squares
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* Crowd Shuffle: Waiting for others */}
+                {isCrowdShuffle && hasSubmitted && !allPlayersSubmitted && (
+                    <>
+                        <div className="card bg-green-50 border-2 border-green-200">
+                            <div className="text-center">
+                                <CheckCircle className="mx-auto text-green-500 mb-2" size={32} />
+                                <h3 className="font-bold text-gray-800 mb-2">Squares Submitted!</h3>
+                                <p className="text-gray-600 text-sm">Waiting for other players to submit their squares...</p>
+                            </div>
+                        </div>
+
+                        {/* Popup Overlay */}
+                        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-6 backdrop-blur-sm animate-fade-in">
+                            <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center animate-scale-in shadow-2xl">
+                                <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <div className="animate-spin text-4xl">⏳</div>
+                                </div>
+                                <h3 className="text-2xl font-bold text-gray-800 mb-2">Waiting for Players</h3>
+                                <p className="text-gray-600 mb-6">
+                                    Please wait while other players finish submitting their bingo squares.
+                                </p>
+                                <div className="flex justify-center gap-2">
+                                    {players.filter(p => !p.hasSubmitted).map(p => (
+                                        <div key={p.id} className="bg-gray-100 px-3 py-1 rounded-full text-xs font-bold text-gray-500">
+                                            {p.name}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </>
+                )}
 
                 {/* Players */}
                 <div className="card">
@@ -132,25 +312,36 @@ export default function RoomLobbyPage() {
                                 {player.isHost && (
                                     <span className="badge-warning">Host</span>
                                 )}
+                                {isCrowdShuffle && player.hasSubmitted && (
+                                    <CheckCircle className="text-green-500" size={20} />
+                                )}
                             </div>
                         ))}
                     </div>
                 </div>
 
                 {/* Actions */}
-                {currentRoom?.isHost ? (
+                {canStartGame ? (
                     <button
                         onClick={handleStartGame}
                         className="w-full btn-primary"
                     >
                         Start Game
                     </button>
-                ) : (
+                ) : isCrowdShuffle && !hasSubmitted ? (
+                    <div className="text-center p-4 bg-pink-50 rounded-xl">
+                        <p className="text-pink-700 font-semibold">Submit your squares to continue</p>
+                    </div>
+                ) : !currentRoom?.isHost ? (
                     <div className="text-center p-4 bg-primary-50 rounded-xl">
                         <div className="animate-pulse flex items-center justify-center gap-2">
                             <div className="w-2 h-2 bg-primary-600 rounded-full"></div>
                             <p className="text-primary-700 font-semibold">Waiting for host to start...</p>
                         </div>
+                    </div>
+                ) : (
+                    <div className="text-center p-4 bg-yellow-50 rounded-xl">
+                        <p className="text-yellow-700 font-semibold">Waiting for all players to submit squares...</p>
                     </div>
                 )}
 

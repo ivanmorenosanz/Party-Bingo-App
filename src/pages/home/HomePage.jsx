@@ -1,7 +1,8 @@
 import { useNavigate } from 'react-router-dom';
-import { Plus, Users, Trophy, Sparkles } from 'lucide-react';
+import { Plus, Users, Trophy, Sparkles, Play, Timer } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useWallet } from '../../context/WalletContext';
+import { useGame } from '../../context/GameContext';
 import BottomNav from '../../components/navigation/BottomNav';
 import { COMMUNITY_BINGOS } from '../../data/bingos';
 
@@ -9,8 +10,10 @@ export default function HomePage() {
     const navigate = useNavigate();
     const { user } = useAuth();
     const { coins } = useWallet();
+    const { activeGames } = useGame();
 
     const featuredBingos = COMMUNITY_BINGOS.slice(0, 3);
+    const myActiveGames = activeGames.filter(g => g.status !== 'finished');
 
     return (
         <div className="min-h-screen bg-gray-50 pb-24">
@@ -46,6 +49,45 @@ export default function HomePage() {
 
             {/* Content */}
             <div className="p-6 space-y-6">
+                {/* Active Games */}
+                {myActiveGames.length > 0 && (
+                    <div>
+                        <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            <Play size={24} className="text-primary-600" />
+                            Active Games
+                        </h2>
+                        <div className="space-y-3">
+                            {myActiveGames.map(game => (
+                                <button
+                                    key={game.code}
+                                    onClick={() => navigate(game.status === 'playing' ? `/play/${game.code}` : `/room/${game.code}`)}
+                                    className="w-full card border-l-4 border-l-primary-500 flex items-center justify-between group"
+                                >
+                                    <div className="text-left">
+                                        <h3 className="font-bold text-gray-800 group-hover:text-primary-600 transition-colors">
+                                            {game.name}
+                                        </h3>
+                                        <p className="text-xs text-gray-500 flex items-center gap-2 mt-1">
+                                            <span className="bg-primary-100 text-primary-700 px-2 py-0.5 rounded-full font-mono">
+                                                {game.code}
+                                            </span>
+                                            {game.status === 'playing' && game.timeLimit > 0 && (
+                                                <span className="flex items-center gap-1 text-orange-500">
+                                                    <Timer size={12} />
+                                                    Timed
+                                                </span>
+                                            )}
+                                        </p>
+                                    </div>
+                                    <div className="bg-primary-50 p-2 rounded-full text-primary-600">
+                                        <Play size={20} fill="currentColor" />
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
                 {/* Quick Actions */}
                 <div className="grid grid-cols-2 gap-4">
                     <button

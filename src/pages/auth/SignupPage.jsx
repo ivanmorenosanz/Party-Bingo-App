@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, User, Mail, Lock, CheckCircle, RefreshCw } from 'lucide-react';
+import { ArrowLeft, User, Mail, Lock, CheckCircle, RefreshCw, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useWallet } from '../../context/WalletContext';
 
@@ -9,6 +9,7 @@ export default function SignupPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
     const [verificationCode, setVerificationCode] = useState('');
     const [showVerification, setShowVerification] = useState(false);
     const [displayCode, setDisplayCode] = useState('');
@@ -16,7 +17,7 @@ export default function SignupPage() {
     const { signup, verifyEmail, resendVerificationCode } = useAuth();
     const { earnCoins } = useWallet();
 
-    const handleSignup = (e) => {
+    const handleSignup = async (e) => {
         e.preventDefault();
         setError('');
 
@@ -37,10 +38,40 @@ export default function SignupPage() {
             return;
         }
 
-        const result = signup(username, email, password);
-        if (result.needsVerification) {
-            setShowVerification(true);
-            setDisplayCode(result.code); // For demo purposes
+        setIsLoading(true);
+        try {
+            const result = await signup(username, email, password);
+
+            if (result.success) {
+                // API mode: signup auto-verifies, so go directly to home
+                earnCoins(50, 'Welcome bonus! 🎉');
+                navigate('/');
+            } else if (result.needsVerification) {
+                // Legacy mode with email verification
+                setShowVerification(true);
+                setDisplayCode(result.code);
+            } else {
+                // Handle specific error messages
+                const errorMessage = result.error || 'Failed to create account';
+                if (errorMessage.includes('Email already')) {
+                    setError('This email is already registered. Please log in instead.');
+                } else if (errorMessage.includes('Username already')) {
+                    setError('This username is already taken. Please choose another one.');
+                } else {
+                    setError(errorMessage);
+                }
+            }
+        } catch (err) {
+            const errorMessage = err.message || 'Failed to create account';
+            if (errorMessage.includes('Email already') || errorMessage.includes('email already')) {
+                setError('This email is already registered. Please log in instead.');
+            } else if (errorMessage.includes('Username already') || errorMessage.includes('username already')) {
+                setError('This username is already taken. Please choose another one.');
+            } else {
+                setError(errorMessage);
+            }
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -100,7 +131,8 @@ export default function SignupPage() {
                     </div>
 
                     {error && (
-                        <div className="bg-red-500/20 border border-red-400/50 text-white p-4 rounded-xl mb-6">
+                        <div className="bg-red-500/20 border border-red-400/50 text-white p-4 rounded-xl mb-6 flex items-center gap-3">
+                            <AlertCircle size={20} className="flex-shrink-0" />
                             {error}
                         </div>
                     )}
@@ -154,8 +186,9 @@ export default function SignupPage() {
                 <p className="text-white/80 mb-8">Join the bingo party and start playing!</p>
 
                 {error && (
-                    <div className="bg-red-500/20 border border-red-400/50 text-white p-4 rounded-xl mb-6">
-                        {error}
+                    <div className="bg-red-500/20 border border-red-400/50 text-white p-4 rounded-xl mb-6 flex items-center gap-3">
+                        <AlertCircle size={20} className="flex-shrink-0" />
+                        <span>{error}</span>
                     </div>
                 )}
 
@@ -168,6 +201,7 @@ export default function SignupPage() {
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
                             className="input-glass pl-12"
+                            disabled={isLoading}
                         />
                     </div>
 
@@ -179,6 +213,7 @@ export default function SignupPage() {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             className="input-glass pl-12"
+                            disabled={isLoading}
                         />
                     </div>
 
@@ -190,14 +225,16 @@ export default function SignupPage() {
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             className="input-glass pl-12"
+                            disabled={isLoading}
                         />
                     </div>
 
                     <button
                         type="submit"
-                        className="w-full bg-white text-primary-600 py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all mt-6"
+                        disabled={isLoading}
+                        className={`w-full bg-white text-primary-600 py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all mt-6 ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
                     >
-                        Sign Up & Get 50 🪙
+                        {isLoading ? 'Creating Account...' : 'Sign Up & Get 50 🪙'}
                     </button>
                 </form>
 

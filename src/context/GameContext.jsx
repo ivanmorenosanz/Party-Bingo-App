@@ -1,58 +1,98 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 
 const GameContext = createContext(null);
 
+const STORAGE_KEY = 'bingo_active_games';
+
 export function GameProvider({ children }) {
-    const [currentRoom, setCurrentRoom] = useState(null);
-    const [markedSquares, setMarkedSquares] = useState(new Set());
-    const [gameStatus, setGameStatus] = useState('idle'); // idle, waiting, playing, finished
-    const [players, setPlayers] = useState([]);
+    const [activeGames, setActiveGames] = useState(() => {
+        try {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            return stored ? JSON.parse(stored) : [];
+        } catch {
+            return [];
+        }
+    });
+
+    // Persist changes
+    useEffect(() => {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(activeGames));
+    }, [activeGames]);
+
+    const getGame = (code) => {
+        return activeGames.find(g => g.code === code);
+    };
 
     const createRoom = (roomData) => {
         const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-        const room = {
+        const newGame = {
             ...roomData,
             code,
             createdAt: new Date().toISOString(),
             isHost: true,
+            status: 'waiting',
+            markedSquares: [], // Set doesn't serialize, use Array
+            startTime: null,
+            players: [{ id: 'host', name: 'You', isHost: true, markedCount: 0 }],
         };
-        setCurrentRoom(room);
-        setMarkedSquares(new Set());
-        setGameStatus('waiting');
-        setPlayers([{ id: 'host', name: 'You', isHost: true, markedCount: 0 }]);
-        return room;
+
+        setActiveGames(prev => [...prev, newGame]);
+        return newGame;
     };
 
     const joinRoom = (code, roomData) => {
-        const room = {
+        const existingGame = getGame(code.toUpperCase());
+        if (existingGame) return existingGame;
+
+        const newGame = {
             ...roomData,
             code: code.toUpperCase(),
             isHost: false,
+            status: 'waiting',
+            markedSquares: [],
+            startTime: null,
+            players: [], // Will be populated by websocket/logic later
         };
-        setCurrentRoom(room);
-        setMarkedSquares(new Set());
-        setGameStatus('waiting');
-        return room;
+
+        setActiveGames(prev => [...prev, newGame]);
+        return newGame;
     };
 
-    const startGame = () => {
-        setGameStatus('playing');
-    };
-
-    const toggleSquare = (index) => {
-        setMarkedSquares(prev => {
-            const newSet = new Set(prev);
-            if (newSet.has(index)) {
-                newSet.delete(index);
-            } else {
-                newSet.add(index);
+    const startGame = (code) => {
+        setActiveGames(prev => prev.map(game => {
+            if (game.code === code) {
+                return {
+                    ...game,
+                    status: 'playing',
+                    startTime: Date.now()
+                };
             }
-            return newSet;
-        });
+            return game;
+        }));
     };
 
-    const checkWin = (gridSize = 3) => {
-        const size = gridSize;
+    const toggleSquare = (code, index) => {
+        setActiveGames(prev => prev.map(game => {
+            if (game.code === code) {
+                const marked = new Set(game.markedSquares);
+                if (marked.has(index)) {
+                    marked.delete(index);
+                } else {
+                    marked.add(index);
+                }
+                return {
+                    ...game,
+                    markedSquares: Array.from(marked)
+                };
+            }
+            return game;
+        }));
+    };
+
+    const checkWin = (game) => {
+        if (!game) return false;
+        const marked = new Set(game.markedSquares);
+        const size = game.gridSize || 3;
         const winning = [];
 
         // Rows
@@ -68,31 +108,30 @@ export function GameProvider({ children }) {
         winning.push(Array.from({ length: size }, (_, i) => i * size + (size - 1 - i)));
 
         return winning.some(combo =>
-            combo.every(index => markedSquares.has(index))
+            combo.every(index => marked.has(index))
         );
     };
 
-    const checkFullHouse = (gridSize = 3) => {
-        return markedSquares.size === gridSize * gridSize;
+    const checkFullHouse = (game) => {
+        if (!game) return false;
+        const size = game.gridSize || 3;
+        return game.markedSquares.length === size * size;
     };
 
-    const leaveRoom = () => {
-        setCurrentRoom(null);
-        setMarkedSquares(new Set());
-        setGameStatus('idle');
-        setPlayers([]);
+    const leaveRoom = (code) => {
+        setActiveGames(prev => prev.filter(g => g.code !== code));
     };
 
-    const endGame = () => {
-        setGameStatus('finished');
+    const updateGame = (code, updates) => {
+        setActiveGames(prev => prev.map(game =>
+            game.code === code ? { ...game, ...updates } : game
+        ));
     };
 
     return (
         <GameContext.Provider value={{
-            currentRoom,
-            markedSquares,
-            gameStatus,
-            players,
+            activeGames,
+            getGame,
             createRoom,
             joinRoom,
             startGame,
@@ -100,8 +139,7 @@ export function GameProvider({ children }) {
             checkWin,
             checkFullHouse,
             leaveRoom,
-            endGame,
-            setPlayers,
+            updateGame
         }}>
             {children}
         </GameContext.Provider>

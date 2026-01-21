@@ -1,23 +1,52 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Mail, Lock } from 'lucide-react';
+import { ArrowLeft, Mail, Lock, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 export default function LoginPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
     const navigate = useNavigate();
     const { login } = useAuth();
 
-    const handleLogin = (e) => {
+    const handleLogin = async (e) => {
         e.preventDefault();
+        setError('');
+
         if (!email || !password) {
             setError('Please fill in all fields');
             return;
         }
-        login(email, password);
-        navigate('/');
+
+        if (!email.includes('@')) {
+            setError('Please enter a valid email address');
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            await login(email, password);
+            navigate('/');
+        } catch (err) {
+            const errorMessage = err.message || 'Login failed';
+
+            // Handle specific error messages
+            if (errorMessage.includes('Invalid credentials') || errorMessage.includes('invalid')) {
+                setError('Incorrect email or password. Please try again.');
+            } else if (errorMessage.includes('not found') || errorMessage.includes('No account')) {
+                setError('No account found with this email. Please sign up first.');
+            } else if (errorMessage.includes('OFFLINE')) {
+                // Offline mode succeeded, navigate to home
+                navigate('/');
+                return;
+            } else {
+                setError(errorMessage);
+            }
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -34,8 +63,9 @@ export default function LoginPage() {
                 <p className="text-white/80 mb-8">Sign in to continue your bingo journey</p>
 
                 {error && (
-                    <div className="bg-red-500/20 border border-red-400/50 text-white p-4 rounded-xl mb-6">
-                        {error}
+                    <div className="bg-red-500/20 border border-red-400/50 text-white p-4 rounded-xl mb-6 flex items-center gap-3">
+                        <AlertCircle size={20} className="flex-shrink-0" />
+                        <span>{error}</span>
                     </div>
                 )}
 
@@ -48,6 +78,7 @@ export default function LoginPage() {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             className="input-glass pl-12"
+                            disabled={isLoading}
                         />
                     </div>
 
@@ -59,14 +90,16 @@ export default function LoginPage() {
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             className="input-glass pl-12"
+                            disabled={isLoading}
                         />
                     </div>
 
                     <button
                         type="submit"
-                        className="w-full bg-white text-primary-600 py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all mt-6"
+                        disabled={isLoading}
+                        className={`w-full bg-white text-primary-600 py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all mt-6 ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
                     >
-                        Log In
+                        {isLoading ? 'Logging in...' : 'Log In'}
                     </button>
                 </form>
 

@@ -1,43 +1,60 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { Trophy, Crown, Medal, Users, Calendar, Copy, Check, UserPlus } from 'lucide-react';
+import { Trophy, Crown, Medal, Users, Calendar, Copy, Check, Play, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import Header from '../../components/navigation/Header';
 import { getLeagueById, getLeaderboard } from '../../data/leagues';
-
-// Simulated users for testing invites
-const SIMULATED_USERS = [
-    { name: 'Emma', avatar: '👩' },
-    { name: 'James', avatar: '👨' },
-    { name: 'Sofia', avatar: '👧' },
-    { name: 'Liam', avatar: '👦' },
-    { name: 'Olivia', avatar: '👩‍🦰' },
-];
+import { COMMUNITY_BINGOS } from '../../data/bingos';
+import { useAuth } from '../../context/AuthContext';
 
 export default function LeagueDetailPage() {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { user } = useAuth();
     const [copied, setCopied] = useState(false);
-    const [showSimulateModal, setShowSimulateModal] = useState(false);
-    const [simulatedJoins, setSimulatedJoins] = useState([]);
     const [league, setLeague] = useState(null);
+    const [showStartGameModal, setShowStartGameModal] = useState(false);
+    const [selectedBingo, setSelectedBingo] = useState(null);
 
+    const [loading, setLoading] = useState(true);
+
+    // Refresh league data periodically
     useEffect(() => {
-        const foundLeague = getLeagueById(id);
-        if (foundLeague) {
-            setLeague({ ...foundLeague });
-        }
+        const loadLeague = () => {
+            const foundLeague = getLeagueById(id);
+            if (foundLeague) {
+                setLeague({ ...foundLeague });
+            }
+            setLoading(false);
+        };
+
+        loadLeague();
+
+        // Refresh every 2 seconds to pick up score updates
+        const interval = setInterval(loadLeague, 2000);
+        return () => clearInterval(interval);
     }, [id]);
 
-    if (!league) {
-        return null;
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="text-primary-600 font-semibold">Loading league...</div>
+            </div>
+        );
     }
 
-    // Combine original members with simulated joins
-    const allMembers = [...league.members, ...simulatedJoins];
-    const leaderboard = [...allMembers].sort((a, b) => {
-        if (b.wins !== a.wins) return b.wins - a.wins;
-        return b.coins - a.coins;
-    });
+    if (!league) {
+        return (
+            <div className="min-h-screen bg-gray-50 pb-6">
+                <Header title="League Not Found" showBack backPath="/leagues" />
+                <div className="p-6 text-center text-gray-500">
+                    <p>This league could not be found.</p>
+                    <p className="text-xs mt-2">ID: {id}</p>
+                </div>
+            </div>
+        );
+    }
+
+    const leaderboard = getLeaderboard(league);
 
     const copyCode = async () => {
         await navigator.clipboard.writeText(league.code);
@@ -45,31 +62,9 @@ export default function LeagueDetailPage() {
         setTimeout(() => setCopied(false), 2000);
     };
 
-    const simulateJoin = () => {
-        // Pick a random user that hasn't joined yet
-        const availableUsers = SIMULATED_USERS.filter(
-            u => !simulatedJoins.some(j => j.name === u.name)
-        );
-
-        if (availableUsers.length === 0) {
-            alert('All simulated users have already joined!');
-            return;
-        }
-
-        const randomUser = availableUsers[Math.floor(Math.random() * availableUsers.length)];
-
-        const newMember = {
-            id: `sim_${Date.now()}`,
-            name: randomUser.name,
-            wins: 0,
-            gamesPlayed: 0,
-            coins: 0,
-            isOwner: false,
-            isSimulated: true,
-        };
-
-        setSimulatedJoins(prev => [...prev, newMember]);
-        setShowSimulateModal(false);
+    const handleStartGame = () => {
+        // Navigate to create room page with league context
+        navigate(`/create?leagueId=${league.id}&leagueName=${encodeURIComponent(league.name)}`);
     };
 
     const getRankIcon = (rank) => {
@@ -88,17 +83,17 @@ export default function LeagueDetailPage() {
                 <div className="grid grid-cols-3 gap-3">
                     <div className="card text-center">
                         <Users className="mx-auto text-primary-600 mb-2" size={24} />
-                        <p className="text-2xl font-bold text-gray-800">{allMembers.length}</p>
+                        <p className="text-2xl font-bold text-gray-800">{league.members.length}</p>
                         <p className="text-xs text-gray-500">Members</p>
                     </div>
                     <div className="card text-center">
                         <Trophy className="mx-auto text-yellow-500 mb-2" size={24} />
-                        <p className="text-2xl font-bold text-gray-800">{league.gamesPlayed}</p>
+                        <p className="text-2xl font-bold text-gray-800">{league.gamesPlayed || 0}</p>
                         <p className="text-xs text-gray-500">Games</p>
                     </div>
                     <div className="card text-center">
                         <Calendar className="mx-auto text-accent-500 mb-2" size={24} />
-                        <p className="text-sm font-bold text-gray-800">{new Date(league.lastPlayed).toLocaleDateString()}</p>
+                        <p className="text-sm font-bold text-gray-800">{league.lastPlayed ? new Date(league.lastPlayed).toLocaleDateString() : 'Never'}</p>
                         <p className="text-xs text-gray-500">Last Played</p>
                     </div>
                 </div>
@@ -123,15 +118,6 @@ export default function LeagueDetailPage() {
                     </div>
                 </div>
 
-                {/* Simulate Join Button for Testing */}
-                <button
-                    onClick={() => setShowSimulateModal(true)}
-                    className="w-full card flex items-center justify-center gap-3 bg-green-50 border-2 border-green-200 text-green-700 font-semibold"
-                >
-                    <UserPlus size={20} />
-                    <span>Simulate Friend Joining</span>
-                </button>
-
                 {/* Leaderboard */}
                 <div className="card">
                     <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
@@ -140,57 +126,58 @@ export default function LeagueDetailPage() {
                     </h3>
 
                     {/* Top 3 Podium */}
-                    <div className="flex items-end justify-center gap-2 mb-6">
-                        {/* 2nd Place */}
-                        {leaderboard[1] && (
-                            <div className="text-center">
-                                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center text-white text-xl font-bold mx-auto mb-2">
-                                    {leaderboard[1].name[0]}
+                    {leaderboard.length >= 1 && (
+                        <div className="flex items-end justify-center gap-2 mb-6">
+                            {/* 2nd Place */}
+                            {leaderboard[1] && (
+                                <div className="text-center">
+                                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center text-white text-xl font-bold mx-auto mb-2">
+                                        {leaderboard[1].name[0]}
+                                    </div>
+                                    <p className="font-semibold text-sm text-gray-800">{leaderboard[1].name}</p>
+                                    <p className="text-xs text-primary-600 font-bold">{leaderboard[1].totalScore || 0} pts</p>
+                                    <div className="bg-gray-200 h-16 w-16 rounded-t-lg mt-2 flex items-center justify-center">
+                                        <span className="text-xl">🥈</span>
+                                    </div>
                                 </div>
-                                <p className="font-semibold text-sm text-gray-800">{leaderboard[1].name}</p>
-                                <p className="text-xs text-gray-500">{leaderboard[1].wins} wins</p>
-                                <div className="bg-gray-200 h-16 w-16 rounded-t-lg mt-2 flex items-center justify-center">
-                                    <span className="text-xl">🥈</span>
-                                </div>
-                            </div>
-                        )}
+                            )}
 
-                        {/* 1st Place */}
-                        {leaderboard[0] && (
-                            <div className="text-center">
-                                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-yellow-400 to-orange-400 flex items-center justify-center text-white text-2xl font-bold mx-auto mb-2 ring-4 ring-yellow-200">
-                                    {leaderboard[0].name[0]}
+                            {/* 1st Place */}
+                            {leaderboard[0] && (
+                                <div className="text-center">
+                                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-yellow-400 to-orange-400 flex items-center justify-center text-white text-2xl font-bold mx-auto mb-2 ring-4 ring-yellow-200">
+                                        {leaderboard[0].name[0]}
+                                    </div>
+                                    <p className="font-bold text-gray-800">{leaderboard[0].name}</p>
+                                    <p className="text-xs text-primary-600 font-bold">{leaderboard[0].totalScore || 0} pts</p>
+                                    <div className="bg-yellow-400 h-24 w-20 rounded-t-lg mt-2 flex items-center justify-center">
+                                        <span className="text-2xl">🥇</span>
+                                    </div>
                                 </div>
-                                <p className="font-bold text-gray-800">{leaderboard[0].name}</p>
-                                <p className="text-xs text-gray-500">{leaderboard[0].wins} wins</p>
-                                <div className="bg-yellow-400 h-24 w-20 rounded-t-lg mt-2 flex items-center justify-center">
-                                    <span className="text-2xl">🥇</span>
-                                </div>
-                            </div>
-                        )}
+                            )}
 
-                        {/* 3rd Place */}
-                        {leaderboard[2] && (
-                            <div className="text-center">
-                                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-orange-300 to-orange-400 flex items-center justify-center text-white text-xl font-bold mx-auto mb-2">
-                                    {leaderboard[2].name[0]}
+                            {/* 3rd Place */}
+                            {leaderboard[2] && (
+                                <div className="text-center">
+                                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-orange-300 to-orange-400 flex items-center justify-center text-white text-xl font-bold mx-auto mb-2">
+                                        {leaderboard[2].name[0]}
+                                    </div>
+                                    <p className="font-semibold text-sm text-gray-800">{leaderboard[2].name}</p>
+                                    <p className="text-xs text-primary-600 font-bold">{leaderboard[2].totalScore || 0} pts</p>
+                                    <div className="bg-orange-300 h-12 w-16 rounded-t-lg mt-2 flex items-center justify-center">
+                                        <span className="text-xl">🥉</span>
+                                    </div>
                                 </div>
-                                <p className="font-semibold text-sm text-gray-800">{leaderboard[2].name}</p>
-                                <p className="text-xs text-gray-500">{leaderboard[2].wins} wins</p>
-                                <div className="bg-orange-300 h-12 w-16 rounded-t-lg mt-2 flex items-center justify-center">
-                                    <span className="text-xl">🥉</span>
-                                </div>
-                            </div>
-                        )}
-                    </div>
+                            )}
+                        </div>
+                    )}
 
                     {/* Full List */}
                     <div className="space-y-2">
                         {leaderboard.map((member, index) => (
                             <div
                                 key={member.id}
-                                className={`flex items-center justify-between p-3 rounded-xl ${member.name === 'You' ? 'bg-primary-50 border border-primary-200' :
-                                        member.isSimulated ? 'bg-green-50 border border-green-200' : 'bg-gray-50'
+                                className={`flex items-center justify-between p-3 rounded-xl ${member.id === user?.id ? 'bg-primary-50 border border-primary-200' : 'bg-gray-50'
                                     }`}
                             >
                                 <div className="flex items-center gap-3">
@@ -201,67 +188,100 @@ export default function LeagueDetailPage() {
                                         {member.name[0]}
                                     </div>
                                     <div>
-                                        <p className="font-semibold text-gray-800">
-                                            {member.name}
-                                            {member.isSimulated && (
-                                                <span className="ml-2 text-xs text-green-600">(simulated)</span>
-                                            )}
-                                        </p>
-                                        <p className="text-xs text-gray-500">{member.gamesPlayed} games played</p>
+                                        <p className="font-semibold text-gray-800">{member.name}</p>
+                                        <p className="text-xs text-gray-500">{member.gamesPlayed || 0} games played</p>
                                     </div>
                                 </div>
                                 <div className="text-right">
-                                    <p className="font-bold text-gray-800">{member.wins} wins</p>
-                                    <p className="text-xs text-green-600">🪙 {member.coins}</p>
+                                    <p className="font-bold text-primary-600">{member.totalScore || 0} pts</p>
+                                    <p className="text-xs text-gray-500">🪙 {member.coins || 0}</p>
                                 </div>
                             </div>
                         ))}
                     </div>
+
+                    {leaderboard.length === 0 && (
+                        <p className="text-center text-gray-500 py-4">No members yet</p>
+                    )}
                 </div>
 
                 {/* Actions */}
-                <button className="w-full btn-primary">
+                <button
+                    onClick={() => setShowStartGameModal(true)}
+                    className="w-full btn-primary flex items-center justify-center gap-2"
+                >
+                    <Play size={20} />
                     Start League Game
                 </button>
             </div>
 
-            {/* Simulate Join Modal */}
-            {showSimulateModal && (
+            {/* Start Game Modal */}
+            {showStartGameModal && (
                 <div
                     className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6"
-                    onClick={() => setShowSimulateModal(false)}
+                    onClick={() => setShowStartGameModal(false)}
                 >
                     <div
-                        className="bg-white rounded-2xl p-6 w-full max-w-sm animate-scale-in"
+                        className="bg-white rounded-2xl p-6 w-full max-w-md max-h-[80vh] overflow-hidden flex flex-col animate-scale-in"
                         onClick={e => e.stopPropagation()}
                     >
-                        <div className="text-5xl text-center mb-4">🧪</div>
-                        <h3 className="text-xl font-bold text-gray-800 text-center mb-2">
-                            Simulate Join
-                        </h3>
-                        <p className="text-gray-600 text-center mb-6">
-                            This will simulate a friend joining your league using the invite code.
-                        </p>
-                        <div className="bg-gray-100 p-4 rounded-xl mb-6 text-center">
-                            <p className="text-xs text-gray-500 mb-1">Available test users:</p>
-                            <div className="flex justify-center gap-2 flex-wrap">
-                                {SIMULATED_USERS.filter(u => !simulatedJoins.some(j => j.name === u.name)).map(u => (
-                                    <span key={u.name} className="text-sm">{u.avatar} {u.name}</span>
-                                ))}
-                            </div>
-                        </div>
-                        <div className="flex gap-3">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-xl font-bold text-gray-800">Start League Game</h3>
                             <button
-                                onClick={() => setShowSimulateModal(false)}
+                                onClick={() => setShowStartGameModal(false)}
+                                className="text-gray-400 hover:text-gray-600"
+                            >
+                                <X size={24} />
+                            </button>
+                        </div>
+
+                        <p className="text-gray-600 mb-4">Select a bingo template for this game:</p>
+
+                        <div className="flex-1 overflow-y-auto space-y-3 mb-4">
+                            {COMMUNITY_BINGOS.map(bingo => (
+                                <button
+                                    key={bingo.id}
+                                    onClick={() => setSelectedBingo(bingo)}
+                                    className={`w-full p-4 rounded-xl border-2 text-left transition-all ${selectedBingo?.id === bingo.id
+                                        ? 'border-primary-500 bg-primary-50'
+                                        : 'border-gray-200 hover:border-gray-300'
+                                        }`}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${bingo.type === 'fun' ? 'bg-yellow-100' : 'bg-blue-100'
+                                            }`}>
+                                            {bingo.type === 'fun' ? '🎉' : '🎯'}
+                                        </div>
+                                        <div className="flex-1">
+                                            <h4 className="font-bold text-gray-800">{bingo.title}</h4>
+                                            <p className="text-sm text-gray-500">
+                                                {bingo.gridSize}×{bingo.gridSize} • {bingo.type === 'fun' ? 'Fun' : 'Competitive'}
+                                            </p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-xs text-gray-400">{bingo.plays} plays</p>
+                                            <p className="text-xs text-yellow-500">★ {bingo.rating}</p>
+                                        </div>
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="flex gap-3 pt-4 border-t">
+                            <button
+                                onClick={() => setShowStartGameModal(false)}
                                 className="flex-1 py-3 rounded-xl font-semibold text-gray-600 bg-gray-100"
                             >
                                 Cancel
                             </button>
                             <button
-                                onClick={simulateJoin}
-                                className="flex-1 btn-primary py-3"
+                                onClick={handleStartGame}
+                                disabled={!selectedBingo}
+                                className={`flex-1 btn-primary py-3 flex items-center justify-center gap-2 ${!selectedBingo ? 'opacity-50 cursor-not-allowed' : ''
+                                    }`}
                             >
-                                Add Random User
+                                <Play size={18} />
+                                Start Game
                             </button>
                         </div>
                     </div>

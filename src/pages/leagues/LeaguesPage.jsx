@@ -3,20 +3,25 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, Trophy, Users, ChevronRight } from 'lucide-react';
 import Header from '../../components/navigation/Header';
 import BottomNav from '../../components/navigation/BottomNav';
-import { getAllLeagues, getLeaderboard, joinLeague } from '../../data/leagues';
+import { getUserLeagues, getLeaderboard, joinLeague } from '../../data/leagues';
+import { useAuth } from '../../context/AuthContext';
 
 export default function LeaguesPage() {
     const navigate = useNavigate();
+    const { user } = useAuth();
     const [showJoinModal, setShowJoinModal] = useState(false);
     const [leagueCode, setLeagueCode] = useState('');
+
+    // Get leagues for the current user
+    const myLeagues = getUserLeagues(user?.id);
 
     const handleCreateLeague = () => {
         navigate('/create-league');
     };
 
     const handleJoinLeague = () => {
-        if (leagueCode.length >= 4) {
-            const result = joinLeague(leagueCode, 'user_1', 'You');
+        if (leagueCode.length >= 4 && user) {
+            const result = joinLeague(leagueCode, user.id, user.username);
             if (result.success) {
                 setShowJoinModal(false);
                 setLeagueCode('');
@@ -55,50 +60,52 @@ export default function LeaguesPage() {
                 </div>
 
                 {/* My Leagues */}
-                <div>
-                    <h2 className="text-lg font-bold text-gray-800 mb-4">My Leagues</h2>
-                    <div className="space-y-3">
-                        {getAllLeagues().map(league => {
-                            const leaderboard = getLeaderboard(league);
-                            const myRank = leaderboard.findIndex(m => m.name === 'You') + 1;
+                {myLeagues.length > 0 && (
+                    <div>
+                        <h2 className="text-lg font-bold text-gray-800 mb-4">My Leagues</h2>
+                        <div className="space-y-3">
+                            {myLeagues.map(league => {
+                                const leaderboard = getLeaderboard(league);
+                                const myRank = leaderboard.findIndex(m => m.id === user?.id) + 1;
 
-                            return (
-                                <button
-                                    key={league.id}
-                                    onClick={() => navigate(`/leagues/${league.id}`)}
-                                    className="w-full card flex items-center gap-4 text-left"
-                                >
-                                    <div className="bg-gradient-to-br from-yellow-400 to-orange-400 w-14 h-14 rounded-xl flex items-center justify-center">
-                                        <Trophy className="text-white" size={28} />
-                                    </div>
-                                    <div className="flex-1">
-                                        <h3 className="font-bold text-gray-800">{league.name}</h3>
-                                        <div className="flex items-center gap-3 mt-1">
-                                            <span className="text-sm text-gray-500">
-                                                {league.members.length} members
-                                            </span>
-                                            <span className="text-sm text-gray-500">
-                                                {league.gamesPlayed} games
-                                            </span>
+                                return (
+                                    <button
+                                        key={league.id}
+                                        onClick={() => navigate(`/leagues/${league.id}`)}
+                                        className="w-full card flex items-center gap-4 text-left"
+                                    >
+                                        <div className="bg-gradient-to-br from-yellow-400 to-orange-400 w-14 h-14 rounded-xl flex items-center justify-center">
+                                            <Trophy className="text-white" size={28} />
                                         </div>
-                                    </div>
-                                    <div className="text-right">
-                                        <span className={`text-2xl font-bold ${myRank === 1 ? 'text-yellow-500' :
-                                            myRank === 2 ? 'text-gray-400' :
-                                                myRank === 3 ? 'text-orange-400' : 'text-primary-600'
-                                            }`}>
-                                            #{myRank}
-                                        </span>
-                                        <ChevronRight className="text-gray-400 ml-auto" size={20} />
-                                    </div>
-                                </button>
-                            );
-                        })}
+                                        <div className="flex-1">
+                                            <h3 className="font-bold text-gray-800">{league.name}</h3>
+                                            <div className="flex items-center gap-3 mt-1">
+                                                <span className="text-sm text-gray-500">
+                                                    {league.members.length} members
+                                                </span>
+                                                <span className="text-sm text-gray-500">
+                                                    {league.gamesPlayed} games
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <span className={`text-2xl font-bold ${myRank === 1 ? 'text-yellow-500' :
+                                                myRank === 2 ? 'text-gray-400' :
+                                                    myRank === 3 ? 'text-orange-400' : 'text-primary-600'
+                                                }`}>
+                                                #{myRank || '-'}
+                                            </span>
+                                            <ChevronRight className="text-gray-400 ml-auto" size={20} />
+                                        </div>
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {/* Empty State */}
-                {getAllLeagues().length === 0 && (
+                {myLeagues.length === 0 && (
                     <div className="text-center py-12">
                         <div className="text-6xl mb-4">🏆</div>
                         <h3 className="text-xl font-bold text-gray-800 mb-2">No Leagues Yet</h3>

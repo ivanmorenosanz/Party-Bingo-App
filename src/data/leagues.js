@@ -1,4 +1,4 @@
-// Leagues data with localStorage persistence
+// Leagues data with per-user localStorage persistence
 
 // Generate a unique league code
 const generateLeagueCode = () => {
@@ -10,74 +10,65 @@ const generateLeagueCode = () => {
     return code;
 };
 
-// Get leagues from localStorage
-const getStoredLeagues = () => {
+// Get storage key for a user
+const getStorageKey = (userId) => `bingo_leagues_${userId || 'global'}`;
+const getGlobalStorageKey = () => 'bingo_all_leagues';
+
+// Get all leagues from global storage
+const getGlobalLeagues = () => {
     try {
-        const stored = localStorage.getItem('bingo_leagues');
-        return stored ? JSON.parse(stored) : [];
+        const stored = localStorage.getItem(getGlobalStorageKey());
+        const parsed = stored ? JSON.parse(stored) : [];
+        return Array.isArray(parsed) ? parsed : [];
     } catch {
         return [];
     }
 };
 
-// Save leagues to localStorage
-const saveLeagues = (leagues) => {
-    localStorage.setItem('bingo_leagues', JSON.stringify(leagues));
+// Save leagues to global storage
+const saveGlobalLeagues = (leagues) => {
+    localStorage.setItem(getGlobalStorageKey(), JSON.stringify(leagues));
 };
 
-// Sample leagues data (will be merged with stored)
-const DEFAULT_LEAGUES = [
-    {
-        id: 'league_1',
-        name: 'Friday Night Crew',
-        code: 'FNC2026',
-        description: 'Weekly bingo battles with friends!',
-        isPrivate: true,
-        members: [
-            { id: 'user_1', name: 'You', wins: 12, gamesPlayed: 20, coins: 1200, isOwner: true },
-            { id: 'user_2', name: 'Sarah', wins: 10, gamesPlayed: 18, coins: 980 },
-            { id: 'user_3', name: 'Mike', wins: 8, gamesPlayed: 20, coins: 850 },
-            { id: 'user_4', name: 'Alex', wins: 7, gamesPlayed: 15, coins: 720 },
-        ],
-        gamesPlayed: 20,
-        createdAt: '2026-01-01',
-        lastPlayed: '2026-01-19',
-    },
-    {
-        id: 'league_2',
-        name: 'Office Champions',
-        code: 'OFC2026',
-        description: 'The ultimate workplace competition.',
-        isPrivate: false,
-        members: [
-            { id: 'user_5', name: 'Boss', wins: 15, gamesPlayed: 25, coins: 1500, isOwner: true },
-            { id: 'user_1', name: 'You', wins: 8, gamesPlayed: 20, coins: 800 },
-            { id: 'user_6', name: 'Jake', wins: 5, gamesPlayed: 15, coins: 500 },
-        ],
-        gamesPlayed: 25,
-        createdAt: '2025-12-15',
-        lastPlayed: '2026-01-18',
-    },
-];
+// Get user's league memberships (just league IDs)
+const getUserLeagueIds = (userId) => {
+    try {
+        const stored = localStorage.getItem(getStorageKey(userId));
+        const parsed = stored ? JSON.parse(stored) : [];
+        return Array.isArray(parsed) ? parsed : [];
+    } catch {
+        return [];
+    }
+};
 
-// Get all leagues (default + stored)
+// Save user's league memberships
+const saveUserLeagueIds = (userId, leagueIds) => {
+    localStorage.setItem(getStorageKey(userId), JSON.stringify(leagueIds));
+};
+
+// Get leagues for a specific user (only leagues they are a member of)
+export const getUserLeagues = (userId) => {
+    const userLeagueIds = getUserLeagueIds(userId);
+    const allLeagues = getGlobalLeagues();
+    return allLeagues.filter(l => userLeagueIds.includes(l.id));
+};
+
+// Get all leagues (for admin/discovery)
 export const getAllLeagues = () => {
-    const stored = getStoredLeagues();
-    const defaultIds = DEFAULT_LEAGUES.map(l => l.id);
-    const uniqueStored = stored.filter(l => !defaultIds.includes(l.id));
-    return [...DEFAULT_LEAGUES, ...uniqueStored];
+    return getGlobalLeagues();
 };
 
-// For backwards compatibility
-export const SAMPLE_LEAGUES = getAllLeagues();
+// For backwards compatibility - but now returns empty array
+// Components should use getUserLeagues(userId) instead
+export const SAMPLE_LEAGUES = [];
 
 // Create a new league
 export const createLeague = ({ name, description, isPrivate, creatorId, creatorName }) => {
-    const leagues = getStoredLeagues();
+    const leagues = getGlobalLeagues();
 
     // Generate unique code
     let code;
-    const existingCodes = [...DEFAULT_LEAGUES, ...leagues].map(l => l.code);
+    const existingCodes = leagues.map(l => l.code);
     do {
         code = generateLeagueCode();
     } while (existingCodes.includes(code));
@@ -104,23 +95,30 @@ export const createLeague = ({ name, description, isPrivate, creatorId, creatorN
     };
 
     leagues.push(newLeague);
-    saveLeagues(leagues);
+    saveGlobalLeagues(leagues);
 
-    // Update SAMPLE_LEAGUES reference
-    SAMPLE_LEAGUES.length = 0;
-    SAMPLE_LEAGUES.push(...getAllLeagues());
+    // Add to creator's league list
+    if (creatorId) {
+        const userLeagueIds = getUserLeagueIds(creatorId);
+        if (!userLeagueIds.includes(newLeague.id)) {
+            userLeagueIds.push(newLeague.id);
+            saveUserLeagueIds(creatorId, userLeagueIds);
+        }
+    }
 
     return newLeague;
 };
 
 // Join a league by code
 export const joinLeague = (code, userId, userName) => {
-    const allLeagues = getAllLeagues();
-    const league = allLeagues.find(l => l.code.toUpperCase() === code.toUpperCase());
+    const allLeagues = getGlobalLeagues();
+    const leagueIndex = allLeagues.findIndex(l => l.code.toUpperCase() === code.toUpperCase());
 
-    if (!league) {
+    if (leagueIndex === -1) {
         return { success: false, error: 'League not found' };
     }
+
+    const league = allLeagues[leagueIndex];
 
     // Check if already a member
     if (league.members.some(m => m.id === userId)) {
@@ -129,8 +127,8 @@ export const joinLeague = (code, userId, userName) => {
 
     // Add member
     league.members.push({
-        id: userId || 'user_1',
-        name: userName || 'You',
+        id: userId,
+        name: userName || 'Player',
         wins: 0,
         gamesPlayed: 0,
         coins: 0,
@@ -138,24 +136,107 @@ export const joinLeague = (code, userId, userName) => {
     });
 
     // Update stored leagues
-    const stored = getStoredLeagues();
-    const idx = stored.findIndex(l => l.id === league.id);
-    if (idx >= 0) {
-        stored[idx] = league;
-        saveLeagues(stored);
+    allLeagues[leagueIndex] = league;
+    saveGlobalLeagues(allLeagues);
+
+    // Add to user's league list
+    if (userId) {
+        const userLeagueIds = getUserLeagueIds(userId);
+        if (!userLeagueIds.includes(league.id)) {
+            userLeagueIds.push(league.id);
+            saveUserLeagueIds(userId, userLeagueIds);
+        }
     }
 
     return { success: true, league };
 };
 
-export const getLeagueById = (id) => getAllLeagues().find(l => l.id === id);
+// Leave a league
+export const leaveLeague = (leagueId, userId) => {
+    const allLeagues = getGlobalLeagues();
+    const leagueIndex = allLeagues.findIndex(l => l.id === leagueId);
+
+    if (leagueIndex === -1) {
+        return { success: false, error: 'League not found' };
+    }
+
+    const league = allLeagues[leagueIndex];
+    league.members = league.members.filter(m => m.id !== userId);
+
+    // Remove league if no members left
+    if (league.members.length === 0) {
+        allLeagues.splice(leagueIndex, 1);
+    } else {
+        allLeagues[leagueIndex] = league;
+    }
+
+    saveGlobalLeagues(allLeagues);
+
+    // Remove from user's league list
+    if (userId) {
+        const userLeagueIds = getUserLeagueIds(userId).filter(id => id !== leagueId);
+        saveUserLeagueIds(userId, userLeagueIds);
+    }
+
+    return { success: true };
+};
+
+export const getLeagueById = (id) => getGlobalLeagues().find(l => l.id === id);
 
 export const getLeagueByCode = (code) =>
-    getAllLeagues().find(l => l.code.toUpperCase() === code.toUpperCase());
+    getGlobalLeagues().find(l => l.code.toUpperCase() === code.toUpperCase());
 
+// Update a member's score after a game
+export const updateMemberScore = (leagueId, userId, gameResult) => {
+    const allLeagues = getGlobalLeagues();
+    const leagueIndex = allLeagues.findIndex(l => l.id === leagueId);
+
+    if (leagueIndex === -1) {
+        return { success: false, error: 'League not found' };
+    }
+
+    const league = allLeagues[leagueIndex];
+    const memberIndex = league.members.findIndex(m => m.id === userId);
+
+    if (memberIndex === -1) {
+        return { success: false, error: 'Member not found' };
+    }
+
+    // Update member stats
+    const member = league.members[memberIndex];
+    member.gamesPlayed = (member.gamesPlayed || 0) + 1;
+    member.totalScore = (member.totalScore || 0) + (gameResult.score || 0);
+    member.coins = (member.coins || 0) + (gameResult.coinsEarned || 0);
+
+    if (gameResult.won) {
+        member.wins = (member.wins || 0) + 1;
+    }
+
+    // Update league stats
+    league.gamesPlayed = (league.gamesPlayed || 0) + 1;
+    league.lastPlayed = new Date().toISOString().split('T')[0];
+
+    allLeagues[leagueIndex] = league;
+    saveGlobalLeagues(allLeagues);
+
+    return { success: true, member };
+};
+
+// Get leaderboard sorted by total score then wins
 export const getLeaderboard = (league) => {
+    if (!league || !league.members) return [];
+
     return [...league.members].sort((a, b) => {
+        // Sort by total score first
+        const scoreA = a.totalScore || 0;
+        const scoreB = b.totalScore || 0;
+        if (scoreB !== scoreA) return scoreB - scoreA;
+
+        // Then by wins
         if (b.wins !== a.wins) return b.wins - a.wins;
-        return b.coins - a.coins;
+
+        // Then by coins
+        return (b.coins || 0) - (a.coins || 0);
     });
 };
+
