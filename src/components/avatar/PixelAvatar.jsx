@@ -1,7 +1,27 @@
 import { useMemo } from 'react';
 
 // Pixel art character data - 8x8 grid encoded sprites
+// Pixel art character data
 const PIXEL_CHARACTERS = {
+    human: {
+        name: 'Human',
+        colors: ['#FFC0CB', '#3498DB', '#2C3E50', '#95A5A6'], // Skin, Shirt, Pants, Shoes
+        // 12x12 grid for better detail
+        sprite: [
+            [0, 0, 0, 0, 3, 3, 3, 3, 0, 0, 0, 0],
+            [0, 0, 0, 3, 3, 3, 3, 3, 3, 0, 0, 0],
+            [0, 0, 0, 3, 1, 1, 1, 1, 3, 0, 0, 0], // Hair/Head
+            [0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0], // Eyes
+            [0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0],
+            [0, 0, 0, 0, 2, 2, 2, 2, 0, 0, 0, 0], // Neck/Shirt
+            [0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0], // Arms/Body
+            [0, 0, 1, 2, 2, 2, 2, 2, 2, 1, 0, 0], // Hands
+            [0, 0, 0, 3, 3, 3, 3, 3, 3, 0, 0, 0], // Belt/Pants
+            [0, 0, 0, 3, 3, 0, 0, 3, 3, 0, 0, 0], // Legs
+            [0, 0, 0, 3, 3, 0, 0, 3, 3, 0, 0, 0],
+            [0, 0, 4, 4, 4, 0, 0, 4, 4, 4, 0, 0], // Shoes
+        ],
+    },
     warrior: {
         name: 'Warrior',
         colors: ['#FF6B6B', '#4ECDC4', '#FFE66D'],
@@ -44,76 +64,6 @@ const PIXEL_CHARACTERS = {
             [1, 1, 0, 0, 0, 0, 1, 1],
         ],
     },
-    healer: {
-        name: 'Healer',
-        colors: ['#FFFFFF', '#27AE60', '#F1C40F'],
-        sprite: [
-            [0, 0, 1, 1, 1, 1, 0, 0],
-            [0, 1, 2, 2, 2, 2, 1, 0],
-            [1, 2, 0, 2, 2, 0, 2, 1],
-            [1, 2, 2, 2, 2, 2, 2, 1],
-            [0, 1, 2, 2, 2, 2, 1, 0],
-            [0, 2, 1, 1, 1, 1, 2, 0],
-            [0, 1, 1, 1, 1, 1, 1, 0],
-            [0, 1, 0, 0, 0, 0, 1, 0],
-        ],
-    },
-    knight: {
-        name: 'Knight',
-        colors: ['#95A5A6', '#3498DB', '#E67E22'],
-        sprite: [
-            [0, 1, 1, 1, 1, 1, 1, 0],
-            [1, 1, 1, 1, 1, 1, 1, 1],
-            [1, 1, 0, 1, 1, 0, 1, 1],
-            [1, 1, 1, 1, 1, 1, 1, 1],
-            [0, 1, 1, 1, 1, 1, 1, 0],
-            [0, 2, 2, 2, 2, 2, 2, 0],
-            [0, 2, 2, 0, 0, 2, 2, 0],
-            [0, 1, 1, 0, 0, 1, 1, 0],
-        ],
-    },
-    archer: {
-        name: 'Archer',
-        colors: ['#27AE60', '#8B4513', '#F39C12'],
-        sprite: [
-            [0, 0, 1, 1, 1, 1, 0, 0],
-            [0, 1, 2, 2, 2, 2, 1, 0],
-            [1, 2, 0, 2, 2, 0, 2, 1],
-            [1, 2, 2, 2, 2, 2, 2, 1],
-            [0, 1, 2, 2, 2, 2, 1, 0],
-            [0, 0, 1, 1, 1, 1, 0, 0],
-            [0, 1, 0, 1, 1, 0, 1, 0],
-            [1, 1, 0, 0, 0, 0, 1, 1],
-        ],
-    },
-    bard: {
-        name: 'Bard',
-        colors: ['#E91E63', '#9C27B0', '#FFC107'],
-        sprite: [
-            [0, 0, 1, 1, 1, 1, 0, 0],
-            [0, 1, 2, 2, 2, 2, 1, 0],
-            [1, 2, 0, 2, 2, 0, 2, 1],
-            [1, 2, 2, 1, 1, 2, 2, 1],
-            [0, 1, 2, 2, 2, 2, 1, 0],
-            [0, 0, 1, 1, 1, 1, 0, 0],
-            [0, 1, 1, 1, 1, 1, 1, 0],
-            [0, 1, 0, 0, 0, 0, 1, 0],
-        ],
-    },
-    ninja: {
-        name: 'Ninja',
-        colors: ['#1A1A2E', '#16213E', '#E94560'],
-        sprite: [
-            [0, 1, 1, 1, 1, 1, 1, 0],
-            [1, 1, 1, 1, 1, 1, 1, 1],
-            [1, 1, 0, 1, 1, 0, 1, 1],
-            [1, 1, 1, 1, 1, 1, 1, 1],
-            [0, 0, 1, 1, 1, 1, 0, 0],
-            [0, 1, 1, 1, 1, 1, 1, 0],
-            [0, 1, 0, 0, 0, 0, 1, 0],
-            [1, 1, 0, 0, 0, 0, 1, 1],
-        ],
-    },
 };
 
 // Pixel art frames
@@ -126,17 +76,20 @@ const PIXEL_FRAMES = {
     crown: { border: '#FFD700', shadow: true, glow: '#FFC107', hasCrown: true },
 };
 
-export default function PixelAvatar({ 
-    character = 'warrior', 
-    size = 64, 
+export default function PixelAvatar({
+    character = 'human',
+    size = 64,
     frame = 'default',
     badge = null,
     showName = false,
     className = ''
 }) {
-    const charData = PIXEL_CHARACTERS[character] || PIXEL_CHARACTERS.warrior;
+    const charData = PIXEL_CHARACTERS[character] || PIXEL_CHARACTERS.human || PIXEL_CHARACTERS.warrior;
     const frameData = PIXEL_FRAMES[frame] || PIXEL_FRAMES.default;
-    const pixelSize = size / 8;
+
+    // Dynamic grid size calculation
+    const gridSize = charData.sprite.length; // 8 or 12 or 16
+    const pixelSize = size / gridSize;
 
     const canvasStyle = useMemo(() => ({
         width: size,
@@ -159,6 +112,8 @@ export default function PixelAvatar({
                                 width: pixelSize,
                                 height: pixelSize,
                                 backgroundColor: charData.colors[colorIndex - 1] || charData.colors[0],
+                                // 3D Block Effect
+                                boxShadow: 'inset -1px -1px 0 rgba(0,0,0,0.2), 1px 1px 0 rgba(255,255,255,0.1)',
                             }}
                         />
                     );
@@ -170,7 +125,7 @@ export default function PixelAvatar({
 
     const frameStyle = useMemo(() => {
         if (frameData.border === 'transparent') return {};
-        
+
         if (frameData.border === 'rainbow') {
             return {
                 background: 'linear-gradient(45deg, #FF0000, #FF7F00, #FFFF00, #00FF00, #0000FF, #4B0082, #8B00FF)',
@@ -179,8 +134,8 @@ export default function PixelAvatar({
         }
 
         return {
-            boxShadow: frameData.glow 
-                ? `0 0 ${size/8}px ${frameData.glow}, inset 0 0 ${size/16}px ${frameData.glow}40`
+            boxShadow: frameData.glow
+                ? `0 0 ${size / 8}px ${frameData.glow}, inset 0 0 ${size / 16}px ${frameData.glow}40`
                 : 'none',
             border: `3px solid ${frameData.border}`,
         };
@@ -188,39 +143,53 @@ export default function PixelAvatar({
 
     return (
         <div className={`inline-flex flex-col items-center ${className}`}>
+            <style>
+                {`
+                @keyframes pixelFloat {
+                    0%, 100% { transform: translateY(0); }
+                    50% { transform: translateY(-3px); }
+                }
+                `}
+            </style>
             <div className="relative">
                 {/* Crown for legendary frame */}
                 {frameData.hasCrown && (
-                    <div 
+                    <div
                         className="absolute -top-3 left-1/2 -translate-x-1/2 text-xl z-10"
                         style={{ fontSize: size / 3 }}
                     >
                         👑
                     </div>
                 )}
-                
+
                 {/* Frame container */}
-                <div 
+                <div
                     className={`relative overflow-hidden ${frameData.animated ? 'animate-pulse' : ''}`}
                     style={{
                         ...canvasStyle,
                         ...frameStyle,
                         borderRadius: '8px',
-                        backgroundColor: '#2D1B4E',
+                        backgroundColor: '#2D1B4E', // Dark animated bg
                     }}
                 >
-                    {/* Pixel sprite */}
-                    <div className="relative w-full h-full" style={{ imageRendering: 'pixelated' }}>
+                    {/* Background Pattern */}
+                    <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(#ffffff 1px, transparent 1px)', backgroundSize: '4px 4px' }}></div>
+
+                    {/* Pixel sprite with float animation */}
+                    <div className="relative w-full h-full" style={{
+                        imageRendering: 'pixelated',
+                        animation: 'pixelFloat 3s ease-in-out infinite'
+                    }}>
                         {renderSprite()}
                     </div>
                 </div>
 
                 {/* Badge */}
                 {badge && (
-                    <div 
+                    <div
                         className="absolute -bottom-1 -right-1 bg-white rounded-full shadow-lg flex items-center justify-center"
-                        style={{ 
-                            width: size / 3, 
+                        style={{
+                            width: size / 3,
                             height: size / 3,
                             fontSize: size / 4,
                         }}

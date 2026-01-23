@@ -7,6 +7,11 @@ import { initDb } from './db.js';
 import usersRouter from './routes/users.js';
 import walletsRouter from './routes/wallets.js';
 
+import bingosRouter from './routes/bingos.js';
+import tradesRouter from './routes/trades.js';
+import leaderboardRouter from './routes/leaderboard.js';
+import marketsRouter from './routes/markets.js';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -29,6 +34,10 @@ app.use((req, res, next) => {
 // API Routes
 app.use('/api/users', usersRouter);
 app.use('/api/wallets', walletsRouter);
+app.use('/api/bingos', bingosRouter);
+app.use('/api/trades', tradesRouter);
+app.use('/api/leaderboard', leaderboardRouter);
+app.use('/api/markets', marketsRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {

@@ -188,6 +188,33 @@ router.get('/session', (req, res) => {
     }
 });
 
+// GET /api/users/search?q=query
+router.get('/search', (req, res) => {
+    try {
+        const db = getDb();
+        const query = req.query.q;
+
+        if (!query || query.trim().length < 2) {
+            return res.json({ users: [] });
+        }
+
+        const searchTerm = `%${query.trim()}%`;
+
+        // Search by username or exact ID match
+        const users = getAll(db.exec(
+            `SELECT * FROM users WHERE username LIKE ? OR id = ? LIMIT 10`,
+            [searchTerm, query.trim()]
+        ));
+
+        res.json({
+            users: users.map(u => parseUserRow(u))
+        });
+    } catch (error) {
+        console.error('Search users error:', error);
+        res.status(500).json({ error: 'Failed to search users' });
+    }
+});
+
 // GET /api/users/:id
 router.get('/:id', (req, res) => {
     try {

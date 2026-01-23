@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Sparkles, Star, TrendingUp, Coins, Banknote, Timer } from 'lucide-react';
+import { Search, Sparkles, Star, TrendingUp, Coins, Banknote, Timer, User } from 'lucide-react';
 import Header from '../../components/navigation/Header';
 import BottomNav from '../../components/navigation/BottomNav';
 import { BINGO_CATEGORIES } from '../../data/bingos';
 import { useBingo } from '../../context/BingoContext';
+import { userAPI } from '../../api/client';
 
 export default function CommunityPage() {
     const navigate = useNavigate();
@@ -12,6 +13,40 @@ export default function CommunityPage() {
     const [activeTab, setActiveTab] = useState('all'); // all, fun, coins, cash
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('all');
+    const [userResults, setUserResults] = useState([]);
+    const [searchingUsers, setSearchingUsers] = useState(false);
+
+    // Detect if searching for users (starts with @)
+    const isUserSearch = searchQuery.startsWith('@');
+
+    // User Search Effect
+    useEffect(() => {
+        const searchUsers = async () => {
+            if (!isUserSearch || searchQuery.length < 2) {
+                setUserResults([]);
+                return;
+            }
+
+            const query = searchQuery.slice(1); // Remove @
+            if (query.length < 2) {
+                setUserResults([]);
+                return;
+            }
+
+            setSearchingUsers(true);
+            try {
+                const users = await userAPI.searchUsers(query);
+                setUserResults(users || []);
+            } catch (error) {
+                console.error('User search error:', error);
+                setUserResults([]);
+            }
+            setSearchingUsers(false);
+        };
+
+        const debounce = setTimeout(searchUsers, 300);
+        return () => clearTimeout(debounce);
+    }, [searchQuery, isUserSearch]);
 
     // Countdown Logic
     const [timeLeft, setTimeLeft] = useState({});
@@ -59,8 +94,8 @@ export default function CommunityPage() {
         ? allBingos
         : allBingos.filter(b => b.type === activeTab);
 
-    // Filter by Search
-    if (searchQuery) {
+    // Filter by Search (only for bingo search, not user search)
+    if (searchQuery && !isUserSearch) {
         const q = searchQuery.toLowerCase();
         if (q.startsWith('#')) {
             // Tag specific search
@@ -91,12 +126,44 @@ export default function CommunityPage() {
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/60" size={20} />
                     <input
                         type="text"
-                        placeholder="Search bingos..."
+                        placeholder="Search bingos... (use @username to find users)"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="input-glass pl-12"
                     />
                 </div>
+
+                {/* User Search Results Dropdown */}
+                {isUserSearch && (
+                    <div className="mt-2 bg-white rounded-xl shadow-lg overflow-hidden">
+                        {searchingUsers ? (
+                            <div className="p-4 text-center text-gray-500">Searching...</div>
+                        ) : userResults.length > 0 ? (
+                            userResults.map(user => (
+                                <button
+                                    key={user.id}
+                                    onClick={() => {
+                                        navigate(`/profile/${user.id}`);
+                                        setSearchQuery('');
+                                    }}
+                                    className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0"
+                                >
+                                    <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center">
+                                        <User size={20} className="text-primary-600" />
+                                    </div>
+                                    <div className="text-left">
+                                        <p className="font-semibold text-gray-800">{user.username}</p>
+                                        <p className="text-xs text-gray-400 font-mono">{user.id}</p>
+                                    </div>
+                                </button>
+                            ))
+                        ) : searchQuery.length > 2 ? (
+                            <div className="p-4 text-center text-gray-500">No users found</div>
+                        ) : (
+                            <div className="p-4 text-center text-gray-400 text-sm">Type at least 2 characters after @</div>
+                        )}
+                    </div>
+                )}
 
 
                 {/* Tabs */}

@@ -6,9 +6,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useBingo } from '../../context/BingoContext';
 
 const GRID_SIZES = [
-    { value: 3, label: '3×3', squares: 9 },
-    { value: 4, label: '4×4', squares: 16 },
-    { value: 5, label: '5×5', squares: 25 },
+    { value: 3, label: '3×3', squares: 9, allowedTypes: ['fun', 'coins', 'cash'] },
+    { value: 4, label: '4×4', squares: 16, allowedTypes: ['fun'] }, // 4x4 only for free games
 ];
 
 const GAME_MODES = [
@@ -43,6 +42,10 @@ export default function CreateBingoPage() {
     const handleTypeChange = (type) => {
         setBingoType(type);
         if (type === 'fun') setPrice(0);
+        // Reset to 3x3 if selecting paid type and currently on 4x4
+        if (type !== 'fun' && gridSize === 4) {
+            handleGridSizeChange(3);
+        }
     };
 
     const handleItemChange = (index, value) => {
@@ -211,21 +214,28 @@ export default function CreateBingoPage() {
                         Grid Size
                     </label>
                     <div className="flex gap-3">
-                        {GRID_SIZES.map(({ value, label, squares }) => (
-                            <button
-                                key={value}
-                                onClick={() => handleGridSizeChange(value)}
-                                className={`flex-1 p-3 rounded-xl border-2 transition-all ${gridSize === value
-                                    ? 'border-primary-500 bg-primary-50'
-                                    : 'border-gray-200 bg-white'
-                                    }`}
-                            >
-                                <span className="font-bold text-gray-800">{label}</span>
-                                <span className="text-xs text-gray-500 block">
-                                    {squares} squares
-                                </span>
-                            </button>
-                        ))}
+                        {GRID_SIZES.map(({ value, label, squares, allowedTypes }) => {
+                            const isDisabled = !allowedTypes.includes(bingoType);
+                            return (
+                                <button
+                                    key={value}
+                                    onClick={() => !isDisabled && handleGridSizeChange(value)}
+                                    disabled={isDisabled}
+                                    className={`flex-1 p-3 rounded-xl border-2 transition-all ${gridSize === value
+                                        ? 'border-primary-500 bg-primary-50'
+                                        : isDisabled
+                                            ? 'border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed'
+                                            : 'border-gray-200 bg-white'
+                                        }`}
+                                >
+                                    <span className="font-bold text-gray-800">{label}</span>
+                                    <span className="text-xs text-gray-500 block">
+                                        {squares} squares
+                                        {isDisabled && ' (Free only)'}
+                                    </span>
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
 

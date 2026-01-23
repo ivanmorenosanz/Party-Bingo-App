@@ -6,6 +6,7 @@ import { AuthProvider } from './context/AuthContext'
 import { WalletProvider } from './context/WalletContext'
 import { GameProvider } from './context/GameContext'
 import { BingoProvider } from './context/BingoContext'
+import { PositionsProvider } from './context/PositionsContext'
 import ErrorBoundary from './components/debug/ErrorBoundary'
 import './index.css'
 
@@ -17,7 +18,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
                     <WalletProvider>
                         <GameProvider>
                             <BingoProvider>
-                                <App />
+                                <PositionsProvider>
+                                    <App />
+                                </PositionsProvider>
                             </BingoProvider>
                         </GameProvider>
                     </WalletProvider>
@@ -26,3 +29,4 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         </ErrorBoundary>
     </React.StrictMode>,
 )
+

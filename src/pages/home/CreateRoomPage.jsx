@@ -4,11 +4,11 @@ import { Info, Sparkles, Users, PenTool, LayoutGrid } from 'lucide-react';
 import Header from '../../components/navigation/Header';
 import { useGame } from '../../context/GameContext';
 import { useAuth } from '../../context/AuthContext';
+import { useBingo } from '../../context/BingoContext';
 
 const GRID_SIZES = [
     { value: 3, label: '3×3', squares: 9 },
     { value: 4, label: '4×4', squares: 16 },
-    { value: 5, label: '5×5', squares: 25 },
 ];
 
 const TIME_LIMITS = [
@@ -49,6 +49,7 @@ export default function CreateRoomPage() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const { user } = useAuth();
+    const { getBingoById } = useBingo();
 
     const [gameMode, setGameMode] = useState('classic');
     const [roomName, setRoomName] = useState('');
@@ -64,6 +65,35 @@ export default function CreateRoomPage() {
 
     // Inputs for Classic (Textarea Pool)
     const [rawItems, setRawItems] = useState('');
+
+    // Pre-fill from Bingo ID
+    useEffect(() => {
+        const bingoId = searchParams.get('bingoId');
+        if (bingoId) {
+            const bingo = getBingoById(bingoId);
+            if (bingo) {
+                setRoomName(bingo.title);
+                setGridSize(bingo.gridSize || 3);
+
+                // If the bingo has fixed items (like usual), switch to first_to_line
+                // Or if it's a large pool, maybe classic.
+                // Assuming "Community Bingos" are usually fixed templates for now.
+                // Most are "first_to_line" style templates.
+                setGameMode(bingo.gameMode || 'first_to_line');
+
+                if (bingo.gameMode === 'first_to_line' || !bingo.gameMode) {
+                    // Ensure fixedItems array matches size
+                    const size = bingo.gridSize || 3;
+                    const items = [...bingo.items];
+                    // Pad if needed
+                    while (items.length < size * size) items.push('');
+                    setFixedItems(items.slice(0, size * size));
+                } else if (bingo.gameMode === 'classic') {
+                    setRawItems(bingo.items.join('\n'));
+                }
+            }
+        }
+    }, [searchParams, getBingoById]);
 
     // Derived for Classic
     const parsedItems = rawItems.split('\n').filter(s => s.trim().length > 0);

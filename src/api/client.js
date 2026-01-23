@@ -31,13 +31,30 @@ async function fetchAPI(endpoint, options = {}) {
 
     try {
         const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
-        const data = await response.json();
+        const contentType = response.headers.get('content-type');
+        const isJson = contentType && contentType.includes('application/json');
 
         if (!response.ok) {
-            throw new Error(data.error || 'API request failed');
+            if (isJson) {
+                const errData = await response.json();
+                throw new Error(errData.error || 'API request failed');
+            }
+            throw new Error(`API Error: ${response.status} ${response.statusText}`);
         }
 
-        return data;
+        if (isJson) {
+            return await response.json();
+        }
+
+        // Handle empty or text response
+        const text = await response.text();
+        if (!text) return {};
+        try {
+            return JSON.parse(text);
+        } catch {
+            // Fallback for non-json success response?
+            throw new Error('Invalid JSON response');
+        }
     } catch (error) {
         // If it's a network error, we might be offline
         if (error.name === 'TypeError' && error.message.includes('fetch')) {
@@ -96,6 +113,66 @@ export const userAPI = {
             // Ignore errors on logout
         }
         setToken(null);
+    },
+
+    async getUser(userId) {
+        const data = await fetchAPI(`/users/${userId}`);
+        return data.user;
+    },
+
+    async searchUsers(query) {
+        const data = await fetchAPI(`/users/search?q=${encodeURIComponent(query)}`);
+        return data.users;
+    },
+};
+
+// Trade API
+export const tradeAPI = {
+    async getTrades(userId) {
+        return fetchAPI(`/trades/user/${userId}`);
+    },
+
+    async placeTrade(userId, squareId, direction, amount) {
+        return fetchAPI('/trades', {
+            method: 'POST',
+            body: JSON.stringify({ userId, squareId, direction, amount }),
+        });
+    },
+};
+
+// Bingo API
+export const bingoAPI = {
+    async getBingos() {
+        return fetchAPI('/bingos');
+    },
+
+    async getBingo(id) {
+        return fetchAPI(`/bingos/${id}`);
+    },
+
+    async createBingo(bingoData) {
+        return fetchAPI('/bingos', {
+            method: 'POST',
+            body: JSON.stringify(bingoData),
+        });
+    },
+};
+
+// Markets API (LMSR Trading)
+export const marketsAPI = {
+    async getMarkets(bingoId) {
+        return fetchAPI(`/markets/${bingoId}`);
+    },
+
+    async getPrice(squareId, direction = 'YES', shares = 1) {
+        return fetchAPI(`/markets/${squareId}/price?direction=${direction}&shares=${shares}`);
+    },
+
+    async trade(squareId, userId, direction, shares) {
+        return fetchAPI(`/markets/${squareId}/trade`, {
+            method: 'POST',
+            body: JSON.stringify({ userId, direction, shares }),
+        });
     },
 };
 

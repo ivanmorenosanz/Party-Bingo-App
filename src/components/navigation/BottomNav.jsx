@@ -1,12 +1,12 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Home, Users, Trophy, ShoppingBag, User, Newspaper } from 'lucide-react';
+import { Home, Users, Trophy, ShoppingBag, User, Newspaper, Medal } from 'lucide-react';
 
 const navItems = [
     { path: '/', icon: Home, label: 'Home' },
-    { path: '/leagues', icon: Trophy, label: 'Leagues' },
     { path: '/community', icon: Users, label: 'Community' },
+    { path: '/leagues', icon: Trophy, label: 'Leagues' },
+    { path: '/leaderboard', icon: Medal, label: 'Ranking' },
     { path: '/shop', icon: ShoppingBag, label: 'Shop' },
-    { path: '/news', icon: Newspaper, label: 'News' },
     { path: '/profile', icon: User, label: 'Profile' },
 ];
 

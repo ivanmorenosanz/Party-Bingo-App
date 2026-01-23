@@ -1,6 +1,9 @@
+import { useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
+import { Briefcase } from 'lucide-react';
 import BingoBackground from './components/layout/BingoBackground';
+import PositionsPanel from './components/trading/PositionsPanel';
 
 // Pages
 import WelcomePage from './pages/auth/WelcomePage';
@@ -23,6 +26,7 @@ import MarketplacePage from './pages/shop/MarketplacePage';
 import ProfilePage from './pages/profile/ProfilePage';
 import RewardsPage from './pages/profile/RewardsPage';
 import NewsPage from './pages/news/NewsPage';
+import LeaderboardPage from './pages/leaderboard/LeaderboardPage';
 
 function ProtectedRoute({ children }) {
     const { isAuthenticated } = useAuth();
@@ -31,10 +35,26 @@ function ProtectedRoute({ children }) {
 
 function App() {
     const { isAuthenticated } = useAuth();
+    const [showPositions, setShowPositions] = useState(false);
 
     return (
         <div className="min-h-screen relative">
             <BingoBackground />
+
+            {/* Global Positions Panel */}
+            {isAuthenticated && (
+                <>
+                    <PositionsPanel isOpen={showPositions} onClose={() => setShowPositions(false)} />
+                    <button
+                        onClick={() => setShowPositions(!showPositions)}
+                        className="fixed bottom-24 right-4 bg-amber-500 text-white p-3 rounded-full shadow-lg hover:bg-amber-600 transition-transform active:scale-95 z-40 border-2 border-amber-400"
+                        title="My Portfolio"
+                    >
+                        <Briefcase size={24} />
+                    </button>
+                </>
+            )}
+
             <div className="relative z-10">
                 <Routes>
                     {/* Auth Routes */}
@@ -66,8 +86,12 @@ function App() {
                     {/* News */}
                     <Route path="/news" element={<ProtectedRoute><NewsPage /></ProtectedRoute>} />
 
+                    {/* Leaderboard */}
+                    <Route path="/leaderboard" element={<ProtectedRoute><LeaderboardPage /></ProtectedRoute>} />
+
                     {/* Profile */}
                     <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+                    <Route path="/profile/:userId" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
                     <Route path="/rewards" element={<ProtectedRoute><RewardsPage /></ProtectedRoute>} />
 
                     {/* Fallback */}
