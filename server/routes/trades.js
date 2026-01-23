@@ -50,6 +50,27 @@ router.post('/', (req, res) => {
             return res.status(400).json({ error: 'Square is not open for trading' });
         }
 
+        // 3. Check Bingo Status and Creator
+        const bingo = getFirst(db.exec('SELECT * FROM bingos WHERE id = ?', [square.bingo_id]));
+        if (!bingo) {
+            return res.status(400).json({ error: 'Market not found' });
+        }
+
+        // Prevent creator from trading on their own market
+        if (bingo.creator_id === userId) {
+            return res.status(403).json({ error: 'You cannot trade on your own market' });
+        }
+
+        // Check if market has ended (pending result)
+        if (bingo.ends_at && new Date(bingo.ends_at) < new Date()) {
+            return res.status(400).json({ error: 'Market has ended. Awaiting result.' });
+        }
+
+        // Check if market is closed
+        if (bingo.status !== 'open') {
+            return res.status(400).json({ error: 'Market is not open for trading' });
+        }
+
         // 3. Deduct Coins
         const newBalance = wallet.coins - amount;
         db.run('UPDATE wallets SET coins = ? WHERE user_id = ?', [newBalance, userId]);

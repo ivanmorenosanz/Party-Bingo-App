@@ -76,7 +76,7 @@ export default function BingoDetailPage() {
         const prices = indices.map(i => marketData.squares[i]?.yesPrice !== undefined ? marketData.squares[i].yesPrice : 0.5);
 
         // If resolved/settled, exact calc
-        if (marketData.squares[0]?.status === 'settled') {
+        if (marketData.squares.length > 0 && marketData.squares[0]?.status === 'settled') {
             return prices.every(p => p === 1) ? 1 : 0;
         }
 
@@ -89,7 +89,7 @@ export default function BingoDetailPage() {
         const prices = marketData.squares.map(s => s.yesPrice !== undefined ? s.yesPrice : 0.5);
 
         // If resolved
-        if (marketData.squares[0]?.status === 'settled') {
+        if (marketData.squares.length > 0 && marketData.squares[0]?.status === 'settled') {
             return prices.every(p => p === 1) ? 1 : 0;
         }
 
@@ -213,6 +213,14 @@ export default function BingoDetailPage() {
 
     const bingoProbability = getBingoProbability();
 
+    // Check if current user is the creator
+    const isCreator = user?.id === bingo.creatorId || user?.id === bingo.creator_id;
+
+    // Check market status
+    const isPendingResult = bingo.status === 'pending_result';
+    const isEnded = bingo.status === 'ended';
+    const canTrade = !isCreator && !isPendingResult && !isEnded;
+
     return (
         <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 pb-24">
             <Header title={bingo.title} showBack backPath="/community" showCoins />
@@ -246,6 +254,28 @@ export default function BingoDetailPage() {
                     </div>
                 )}
             </div>
+
+            {/* Status Banners */}
+            {isCreator && !isEnded && (
+                <div className="mx-4 mt-2 p-3 rounded-xl bg-blue-600 text-white text-center text-sm font-medium">
+                    👑 You are the market creator. You cannot trade on this market.
+                    {isPendingResult && (
+                        <div className="mt-2 text-xs">Scroll down to resolve the market.</div>
+                    )}
+                </div>
+            )}
+
+            {isPendingResult && !isCreator && (
+                <div className="mx-4 mt-2 p-3 rounded-xl bg-amber-500 text-white text-center text-sm font-medium">
+                    ⏳ Market has ended. Awaiting result from creator.
+                </div>
+            )}
+
+            {isEnded && (
+                <div className="mx-4 mt-2 p-3 rounded-xl bg-gray-600 text-white text-center text-sm font-medium">
+                    ✅ Market resolved.
+                </div>
+            )}
 
             {/* Trading Grid */}
             <div className="px-4 pb-4 flex-1 min-h-0">
@@ -295,6 +325,7 @@ export default function BingoDetailPage() {
                     bingoId={bingo.id}
                     bingoTitle={bingo.title}
                     isResolved={bingo.status === 'ended'}
+                    canTrade={canTrade}
                     onClose={() => setSelectedSquare(null)}
                     onTradeComplete={() => {
                         if (bingo?.tradeable) {

@@ -17,13 +17,13 @@ export const calculateAS = (correctTrades, totalTrades) => {
     return (correctTrades / totalTrades) * 100;
 };
 
-export const calculatePS = (resolvedTrades) => {
-    if (!resolvedTrades) return 0;
+export const calculatePS = (totalTrades) => {
+    if (!totalTrades) return 0;
     // Cap at 100, logarithmic growth
     // log10(100) = 2 -> 20 * 2 = 40 (Requires tons of trades to max out, maybe adjust factor later)
     // User formula: 20 * log10(N + 1)
     // To hit 100: log10(N+1) = 5 -> N = 99,999 (This seems high for MVP, but sticking to user formula)
-    return Math.min(100, 20 * Math.log10(resolvedTrades + 1));
+    return Math.min(100, 20 * Math.log10(totalTrades + 1));
 };
 
 export const calculateURS = (metrics) => {
@@ -35,10 +35,10 @@ export const calculateURS = (metrics) => {
     const tradesForAccuracy = resolvedTrades > 0 ? resolvedTrades : 1;
 
     const AS = (correctTrades / tradesForAccuracy) * 100;
-    const PS = calculatePS(resolvedTrades);
+    const PS = calculatePS(totalTrades);
 
     // If no trades yet, URS is 0
-    if (resolvedTrades === 0) return 0;
+    if (totalTrades === 0) return 0;
 
     return Math.round((0.7 * AS) + (0.3 * PS));
 };

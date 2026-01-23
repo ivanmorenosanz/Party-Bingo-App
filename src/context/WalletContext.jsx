@@ -24,6 +24,7 @@ export function WalletProvider({ children }) {
                     setCash(data.cash || 0.00);
                     setTransactions(data.transactions || []);
                 } catch (error) {
+                    console.warn('Failed to fetch wallet:', error);
                     // Fallback to localStorage
                     const savedCoins = localStorage.getItem('bingo_coins');
                     const savedCash = localStorage.getItem('bingo_cash');
@@ -89,8 +90,8 @@ export function WalletProvider({ children }) {
         setCoins(prev => prev - amount);
         addTransaction('spend', amount, reason, 'coins');
 
-        // Sync to server
-        if (user?.id) {
+        // Sync to server only if real user
+        if (user?.id && !user.id.toString().startsWith('guest_')) {
             try {
                 const data = await walletAPI.spendCoins(user.id, amount, reason);
                 if (!data.success) {
@@ -100,7 +101,12 @@ export function WalletProvider({ children }) {
                 }
                 setCoins(data.coins);
             } catch (error) {
-                console.warn('Failed to sync spend to server');
+                console.warn('Failed to sync spend to server', error);
+                // Don't revert for 404s if we are in a weird state, trust local?
+                // Actually if server 404s (wallet not found), we should probably revert or ignore
+                if (error.message.includes('404')) {
+                    console.error('Wallet not found on server');
+                }
             }
         }
         return true;

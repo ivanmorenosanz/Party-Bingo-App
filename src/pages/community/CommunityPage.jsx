@@ -5,11 +5,13 @@ import Header from '../../components/navigation/Header';
 import BottomNav from '../../components/navigation/BottomNav';
 import { BINGO_CATEGORIES } from '../../data/bingos';
 import { useBingo } from '../../context/BingoContext';
+import { useAuth } from '../../context/AuthContext';
 import { userAPI } from '../../api/client';
 
 export default function CommunityPage() {
     const navigate = useNavigate();
     const { bingos: allBingos } = useBingo();
+    const { user } = useAuth();
     const [activeTab, setActiveTab] = useState('all'); // all, fun, coins, cash
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('all');
@@ -210,19 +212,21 @@ export default function CommunityPage() {
                     ))}
                 </div>
 
-                {/* Create Your Own CTA */}
-                <button
-                    onClick={() => navigate('/create-bingo')}
-                    className="w-full bg-gradient-to-r from-primary-500 to-accent-500 p-4 rounded-2xl text-white flex items-center gap-4"
-                >
-                    <div className="bg-white/20 w-12 h-12 rounded-xl flex items-center justify-center">
-                        <Sparkles size={24} />
-                    </div>
-                    <div className="text-left flex-1">
-                        <h3 className="font-bold">Create & Earn</h3>
-                        <p className="text-white/80 text-sm">Make bingos, earn coins!</p>
-                    </div>
-                </button>
+                {/* Create Your Own CTA - Only for Verified Creators */}
+                {user?.isVerified && (
+                    <button
+                        onClick={() => navigate('/create-bingo')}
+                        className="w-full bg-gradient-to-r from-primary-500 to-accent-500 p-4 rounded-2xl text-white flex items-center gap-4"
+                    >
+                        <div className="bg-white/20 w-12 h-12 rounded-xl flex items-center justify-center">
+                            <Sparkles size={24} />
+                        </div>
+                        <div className="text-left flex-1">
+                            <h3 className="font-bold">Create Market</h3>
+                            <p className="text-white/80 text-sm">Create prediction markets</p>
+                        </div>
+                    </button>
+                )}
 
                 {/* Bingo List */}
                 <div className="space-y-3">

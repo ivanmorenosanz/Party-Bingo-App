@@ -52,7 +52,7 @@ export default function ProfilePage() {
     // Use stats urs metrics if available, otherwise default to 0
     const ursMetrics = user?.stats?.urs || { correctTrades: 0, totalTrades: 0, resolvedTrades: 0 };
     const AS = calculateAS(ursMetrics.correctTrades, ursMetrics.resolvedTrades); // AS based on resolved
-    const PS = calculatePS(ursMetrics.resolvedTrades);
+    const PS = calculatePS(ursMetrics.totalTrades);
     const URS = calculateURS(ursMetrics);
     const tier = getURSTier(URS);
 
@@ -193,7 +193,7 @@ export default function ProfilePage() {
                         {positions.length > 0 ? (
                             <div className="space-y-3">
                                 {positions.map((pos) => (
-                                    <div key={pos.id} className="bg-gray-50 rounded-xl p-3 border border-gray-100 shadow-sm relative overflow-hidden group hover:border-amber-200 transition-colors cursor-pointer" onClick={() => navigate(`/community`)}>
+                                    <div key={pos.id} className="bg-gray-50 rounded-xl p-3 border border-gray-100 shadow-sm relative overflow-hidden group hover:border-amber-200 transition-colors cursor-pointer" onClick={() => navigate(`/community/${pos.bingoId}`)}>
                                         <div className="flex justify-between items-start mb-2 relative z-10">
                                             <div>
                                                 <p className="font-bold text-gray-800 text-sm line-clamp-1">{pos.bingoTitle || 'Unknown Bingo'}</p>
@@ -246,27 +246,41 @@ export default function ProfilePage() {
 
                     <div className="space-y-3">
                         {displayTransactions.length > 0 ? (
-                            displayTransactions.slice(0, 5).map(tx => (
-                                <div key={tx.id} className="flex justify-between items-center text-sm py-2 border-b border-gray-50 last:border-0">
-                                    <div className="flex flex-col">
-                                        <span className="font-medium text-gray-700">
-                                            {isOwnProfile ? tx.description :
-                                                // Check if it's a trade object (has square_description) or transaction object
-                                                (tx.square_description ? `${tx.direction} on ${tx.square_description}` : tx.description)
+                            displayTransactions.slice(0, 5).map(tx => {
+                                // Determine bingoId from metadata (own profile) or bingo_id (public trades)
+                                let bingoId = null;
+                                if (tx.metadata) {
+                                    try {
+                                        const meta = typeof tx.metadata === 'string' ? JSON.parse(tx.metadata) : tx.metadata;
+                                        bingoId = meta.bingoId;
+                                    } catch (e) { }
+                                }
+                                if (!bingoId && tx.bingo_id) bingoId = tx.bingo_id;
+
+                                return (
+                                    <div key={tx.id}
+                                        className={`flex justify-between items-center text-sm py-2 border-b border-gray-50 last:border-0 ${bingoId ? 'cursor-pointer hover:bg-gray-50 transition-colors' : ''}`}
+                                        onClick={() => bingoId && navigate(`/community/${bingoId}`)}
+                                    >
+                                        <div className="flex flex-col">
+                                            <span className={`font-medium text-gray-700 flex items-center gap-1`}>
+                                                {bingoId && <ChevronRight size={12} className="text-gray-400" />}
+                                                {isOwnProfile ? tx.description :
+                                                    (tx.square_description ? `${tx.direction} on ${tx.square_description}` : tx.description)
+                                                }
+                                            </span>
+                                            <span className="text-xs text-gray-400">{new Date(tx.timestamp || tx.created_at).toLocaleDateString()}</span>
+                                        </div>
+                                        <span className={`font-bold ${(tx.type === 'earn' || tx.amount > 0 && isOwnProfile) ? 'text-green-600' : 'text-gray-600'
+                                            }`}>
+                                            {isOwnProfile
+                                                ? (tx.type === 'earn' ? '+' : '-') + tx.amount
+                                                : `${tx.amount} coins`
                                             }
                                         </span>
-                                        <span className="text-xs text-gray-400">{new Date(tx.timestamp).toLocaleDateString()}</span>
                                     </div>
-                                    <span className={`font-bold ${(tx.type === 'earn' || tx.amount > 0 && isOwnProfile) ? 'text-green-600' : 'text-gray-600'
-                                        }`}>
-                                        {/* For trades, show amount wagered */}
-                                        {isOwnProfile
-                                            ? (tx.type === 'earn' ? '+' : '-') + tx.amount
-                                            : `${tx.amount} coins`
-                                        }
-                                    </span>
-                                </div>
-                            ))
+                                );
+                            })
                         ) : (
                             <p className="text-center text-gray-400 py-4 text-sm">No activity yet</p>
                         )}

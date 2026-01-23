@@ -5,10 +5,11 @@ import { useWallet } from '../../context/WalletContext';
 import { useAuth } from '../../context/AuthContext';
 import { usePositions } from '../../context/PositionsContext';
 
-export default function TradeModal({ square, bingoId, bingoTitle, isResolved, onClose, onTradeComplete }) {
+export default function TradeModal({ square, bingoId, bingoTitle, isResolved, canTrade = true, onClose, onTradeComplete }) {
     const { user } = useAuth();
-    const { coins, spendCoins } = useWallet();
+    const { coins: walletCoins, spendCoins } = useWallet();
     const { addPosition } = usePositions();
+    const coins = Number(walletCoins || 0);
     const [direction, setDirection] = useState('YES');
     const [shares, setShares] = useState(1);
     const [priceQuote, setPriceQuote] = useState(null);
@@ -62,8 +63,14 @@ export default function TradeModal({ square, bingoId, bingoTitle, isResolved, on
     const handleTrade = async () => {
         if (!priceQuote || trading) return;
 
+        if (!canTrade) {
+            setError('Trading is not available for this market');
+            return;
+        }
+
         if (priceQuote.cost > coins) {
-            setError('Insufficient funds');
+            console.log('Insufficient funds check:', { cost: priceQuote.cost, coins, walletCoins, type: typeof coins });
+            setError(`Insufficient funds (Cost: ${priceQuote.cost}, Balance: ${coins})`);
             return;
         }
 
@@ -113,7 +120,7 @@ export default function TradeModal({ square, bingoId, bingoTitle, isResolved, on
         } catch (err) {
             console.warn("Trade API failed, attempting local fallback", err);
             // If API is missing (404) or offline, allow local trade
-            if (err.message && (err.message.includes('404') || err.message.includes('OFFLINE') || err.message.includes('Failed to fetch'))) {
+            if (err.message && (err.message.includes('404') || err.message.includes('Square not found') || err.message.includes('OFFLINE') || err.message.includes('Failed to fetch'))) {
                 try {
                     await finishTrade();
                     onTradeComplete?.({ success: true, local: true, cost: priceQuote.cost });

@@ -85,7 +85,24 @@ router.post('/:userId/spend', (req, res) => {
 
         const wallet = getFirst(db.exec('SELECT * FROM wallets WHERE user_id = ?', [userId]));
         if (!wallet) {
-            return res.status(404).json({ error: 'Wallet not found' });
+            // Auto-create wallet if missing (should not usually happen but good for robustness)
+            const STARTING_COINS = 100;
+            if (STARTING_COINS < amount) {
+                return res.status(400).json({ error: 'Insufficient coins', success: false });
+            }
+
+            const newBalance = STARTING_COINS - amount;
+            db.run('INSERT INTO wallets (id, user_id, coins, cash, created_at) VALUES (?, ?, ?, ?, ?)',
+                [uuidv4(), userId, newBalance, 0, new Date().toISOString()]);
+
+            // Record transaction
+            db.run(`INSERT INTO transactions (id, user_id, type, amount, description, timestamp)
+                    VALUES (?, ?, ?, ?, ?, ?)`, [
+                uuidv4(), userId, 'spend', amount, reason || 'Purchase', new Date().toISOString()
+            ]);
+
+            saveDb();
+            return res.json({ coins: newBalance, success: true });
         }
 
         if (wallet.coins < amount) {

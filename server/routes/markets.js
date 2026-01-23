@@ -7,6 +7,7 @@ const router = express.Router();
 // LMSR Constants
 const DEFAULT_LIQUIDITY = 100;
 const CORRELATION_FACTOR = 1.2;
+const PAYOUT_PER_SHARE = 100;
 
 // LMSR Functions
 const lmsrCost = (yesShares, noShares, liquidity = DEFAULT_LIQUIDITY) => {
@@ -29,7 +30,7 @@ const calculateBuyCost = (yesShares, noShares, direction, shares, liquidity = DE
     } else {
         costAfter = lmsrCost(yesShares, noShares + shares, liquidity);
     }
-    return Math.ceil(costAfter - costBefore);
+    return costAfter - costBefore;
 };
 
 const getBingoLines = () => [
@@ -118,12 +119,17 @@ router.post('/:squareId/trade', (req, res) => {
         const liquidity = square.liquidity || DEFAULT_LIQUIDITY;
 
         // Calculate cost
-        const cost = calculateBuyCost(yesShares, noShares, direction, shares, liquidity);
+        const rawCost = calculateBuyCost(yesShares, noShares, direction, shares, liquidity);
+        const cost = Math.ceil(rawCost * PAYOUT_PER_SHARE);
 
         // Check wallet
         const wallet = getFirst(db.exec('SELECT * FROM wallets WHERE user_id = ?', [userId]));
-        if (!wallet || wallet.coins < cost) {
-            return res.status(400).json({ error: 'Insufficient funds', cost });
+        const walletCoins = wallet ? Number(wallet.coins) : 0;
+
+        console.log(`Trade check: User ${userId} has ${walletCoins} coins. Cost is ${cost}. Result: ${walletCoins < cost}`);
+
+        if (!wallet || walletCoins < cost) {
+            return res.status(400).json({ error: 'Insufficient funds', cost, balance: walletCoins });
         }
 
         // Deduct coins
@@ -145,9 +151,16 @@ router.post('/:squareId/trade', (req, res) => {
         ]);
 
         // Record transaction
-        db.run(`INSERT INTO transactions (id, user_id, type, amount, description, timestamp)
-                VALUES (?, ?, ?, ?, ?, ?)`, [
-            uuidv4(), userId, 'spend', cost, `${direction} ${shares} shares @ ${Math.round(newPrice * 100)}%`, new Date().toISOString()
+        const metadata = JSON.stringify({ bingoId: req.params.bingoId || 'unknown' }); // Wait, square trade doesn't have bingoId in params? 
+        // We need to look it up from the square or params. 
+        // The API route is POST /api/markets/:squareId/trade
+        // squareId is unique. We fetched 'square' earlier. `square.bingo_id` exists.
+
+        const txMetadata = JSON.stringify({ bingoId: square.bingo_id });
+
+        db.run(`INSERT INTO transactions (id, user_id, type, amount, description, timestamp, metadata)
+                VALUES (?, ?, ?, ?, ?, ?, ?)`, [
+            uuidv4(), userId, 'spend', cost, `${direction} ${shares} shares @ ${Math.round(newPrice * 100)}% on ${square.description}`, new Date().toISOString(), txMetadata
         ]);
 
         saveDb();
@@ -182,7 +195,8 @@ router.get('/:squareId/price', (req, res) => {
         const noShares = square.no_shares || 0;
         const liquidity = square.liquidity || DEFAULT_LIQUIDITY;
 
-        const cost = calculateBuyCost(yesShares, noShares, direction, shares, liquidity);
+        const rawCost = calculateBuyCost(yesShares, noShares, direction, shares, liquidity);
+        const cost = Math.ceil(rawCost * PAYOUT_PER_SHARE);
         const currentPrice = getYesPrice(yesShares, noShares, liquidity);
 
         res.json({

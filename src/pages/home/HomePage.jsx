@@ -16,6 +16,7 @@ export default function HomePage() {
     const { bingos } = useBingo();
     const { activeGames } = useGame();
     const [showBuyCoinsModal, setShowBuyCoinsModal] = useState(false);
+    const [showBuyCashModal, setShowBuyCashModal] = useState(false);
 
     // Countdown Logic
     const [timeLeft, setTimeLeft] = useState({});
@@ -79,13 +80,19 @@ export default function HomePage() {
                         <p className="text-white/80 text-xs">Ready to predict?</p>
                     </div>
                     <div className="flex items-center gap-1">
-                        {/* Cash Badge */}
-                        <div className="bg-white/20 backdrop-blur px-2 py-1.5 rounded-full flex items-center gap-1.5 mr-1">
+                        {/* Cash Badge with + Button */}
+                        <div className="bg-white/20 backdrop-blur px-2 py-1.5 rounded-l-full flex items-center gap-1.5">
                             <span className="bg-green-500 rounded-full w-4 h-4 flex items-center justify-center text-white font-bold text-[10px]">$</span>
                             <span className="text-white font-bold text-sm">${(cash || 0).toFixed(2)}</span>
                         </div>
+                        <button
+                            onClick={() => setShowBuyCashModal(true)}
+                            className="bg-green-400 hover:bg-green-500 p-1.5 rounded-r-full transition-colors mr-2"
+                        >
+                            <Plus size={14} className="text-green-900" />
+                        </button>
 
-                        {/* Coins Badge */}
+                        {/* Coins Badge with + Button */}
                         <div className="bg-white/20 backdrop-blur px-3 py-1.5 rounded-l-full flex items-center gap-1.5">
                             <Coins className="text-yellow-300" size={14} />
                             <span className="text-white font-bold text-sm">{coins}</span>
@@ -240,7 +247,7 @@ export default function HomePage() {
                                 </div>
 
                                 <div className="grid grid-cols-3 gap-1 opacity-60">
-                                    {bingo.items.slice(0, 3).map((item, i) => (
+                                    {(bingo.items || []).slice(0, 3).map((item, i) => (
                                         <div key={i} className="aspect-square bg-gray-50 rounded-lg flex items-center justify-center p-1 text-[8px] text-center border border-gray-100">
                                             {item}
                                         </div>
@@ -307,12 +314,12 @@ export default function HomePage() {
                                         {bingo.title}
                                     </h3>
                                     <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
-                                        <span className="bg-gray-100 px-2 py-0.5 rounded-full">{bingo.tags[0]}</span>
-                                        <span>• {bingo.plays} plays</span>
+                                        <span className="bg-gray-100 px-2 py-0.5 rounded-full">{bingo.tags?.[0] || 'Bingo'}</span>
+                                        <span>• {bingo.plays || 0} plays</span>
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-3 gap-1 opacity-60">
-                                    {bingo.items.slice(0, 3).map((item, i) => (
+                                    {(bingo.items || []).slice(0, 3).map((item, i) => (
                                         <div key={i} className="aspect-square bg-gray-50 rounded-lg flex items-center justify-center p-1 text-[8px] text-center border border-gray-100">
                                             {item}
                                         </div>
@@ -329,7 +336,7 @@ export default function HomePage() {
 
             <BottomNav />
 
-            {/* Buy Coins Modal (Coming Soon) */}
+            {/* Buy Coins Modal with Watch Ad */}
             {
                 showBuyCoinsModal && (
                     <div
@@ -350,23 +357,89 @@ export default function HomePage() {
                                 </button>
                             </div>
 
-                            <div className="text-center py-8">
-                                <div className="bg-yellow-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
-                                    <Coins className="text-yellow-500" size={40} />
-                                </div>
-                                <h4 className="text-lg font-bold text-gray-800 mb-2">Coming Soon!</h4>
-                                <p className="text-gray-600 mb-4">
-                                    Coin purchases will be available in a future update. For now, earn coins by playing games and completing achievements!
-                                </p>
-                                <div className="bg-primary-50 rounded-xl p-4">
-                                    <p className="text-sm text-primary-700 font-medium">
-                                        💡 Tip: Win competitive bingos to earn more coins!
-                                    </p>
+                            <div className="space-y-4">
+                                {/* Watch Ad Option */}
+                                <button
+                                    onClick={() => {
+                                        // Simulate watching ad - in production integrate AdMob/Unity Ads
+                                        alert('🎬 Watching ad... (In production, this would show a real ad)');
+                                        // Award coins after "ad"
+                                        setTimeout(() => {
+                                            alert('🎉 You earned 10 coins!');
+                                            // TODO: Call earnCoins(10, 'Watched Ad') when wallet context is available
+                                            setShowBuyCoinsModal(false);
+                                        }, 500);
+                                    }}
+                                    className="w-full bg-gradient-to-r from-purple-500 to-indigo-600 p-4 rounded-xl text-white flex items-center gap-4 hover:scale-[1.02] transition-transform"
+                                >
+                                    <div className="bg-white/20 w-12 h-12 rounded-xl flex items-center justify-center">
+                                        <span className="text-2xl">🎬</span>
+                                    </div>
+                                    <div className="text-left flex-1">
+                                        <h4 className="font-bold">Watch Ad</h4>
+                                        <p className="text-white/80 text-sm">Earn 10 coins for free!</p>
+                                    </div>
+                                    <span className="bg-yellow-400 text-yellow-900 font-bold px-3 py-1 rounded-full text-sm">
+                                        +10 🪙
+                                    </span>
+                                </button>
+
+                                {/* Coming Soon */}
+                                <div className="bg-gray-50 rounded-xl p-4 text-center">
+                                    <p className="text-sm text-gray-500 mb-2">More options coming soon!</p>
+                                    <p className="text-xs text-gray-400">Win predictions to earn more coins</p>
                                 </div>
                             </div>
 
                             <button
                                 onClick={() => setShowBuyCoinsModal(false)}
+                                className="w-full btn-secondary mt-4"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                )
+            }
+
+            {/* Buy Cash Modal (Coming Soon) */}
+            {
+                showBuyCashModal && (
+                    <div
+                        className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6"
+                        onClick={() => setShowBuyCashModal(false)}
+                    >
+                        <div
+                            className="bg-white rounded-2xl p-6 w-full max-w-sm animate-scale-in"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-xl font-bold text-gray-800">Add Cash</h3>
+                                <button
+                                    onClick={() => setShowBuyCashModal(false)}
+                                    className="text-gray-400 hover:text-gray-600"
+                                >
+                                    <X size={24} />
+                                </button>
+                            </div>
+
+                            <div className="text-center py-8">
+                                <div className="bg-green-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <span className="text-4xl">💵</span>
+                                </div>
+                                <h4 className="text-lg font-bold text-gray-800 mb-2">Coming Soon!</h4>
+                                <p className="text-gray-600 mb-4">
+                                    Cash deposits will be available in a future update. You'll be able to add real money to trade in cash markets.
+                                </p>
+                                <div className="bg-green-50 rounded-xl p-4">
+                                    <p className="text-sm text-green-700 font-medium">
+                                        💡 For now, use Coins markets to practice!
+                                    </p>
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={() => setShowBuyCashModal(false)}
                                 className="w-full btn-primary"
                             >
                                 Got it!

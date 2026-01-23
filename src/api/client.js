@@ -206,3 +206,21 @@ export async function checkAPIHealth() {
         return false;
     }
 }
+
+// Bingos API
+export const bingosAPI = {
+    async getBingos() {
+        return await fetchAPI('/bingos');
+    },
+
+    async getBingo(id) {
+        return await fetchAPI(`/bingos/${id}`);
+    },
+
+    async createBingo(bingoData) {
+        return await fetchAPI('/bingos', {
+            method: 'POST',
+            body: JSON.stringify(bingoData),
+        });
+    },
+};
